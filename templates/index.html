@@ -1,0 +1,249 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Energy &amp; Ags Commodities Trading</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+*{box-sizing:border-box}
+html{overflow-x:hidden}
+body{background:#0b0f14;color:#d8dee9;font:13px/1.3 Consolas,Menlo,monospace;margin:0}
+header{padding:5px 10px;background:#111821;border:1px solid #1e2a38;border-radius:4px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+h1{font-size:15px;margin:0;color:#ffb000} h2{font-size:13px;margin:0 0 4px;color:#7fd1ff}
+#app{display:grid;grid-template-columns:minmax(0,1fr) clamp(300px,23vw,460px);gap:6px;padding:6px;align-items:start;min-height:100vh}
+#main{display:flex;flex-direction:column;gap:6px;min-width:0}
+#top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}#top .p{font-size:11px}#top h2{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#top .src{max-height:2.6em;overflow:auto;font-size:9px}
+#fx table{font-size:10.5px}#fx>div{gap:6px!important}#macro td{padding:1px 3px}.spk{width:90px;height:20px;display:block}
+.pend{display:inline-block;background:#8a8f98;color:#000;border-radius:2px;padding:0 3px;font-size:9px}.conf{display:inline-block;background:#d00000;color:#fff;border-radius:2px;padding:0 3px;font-size:9px}tr.ap td{color:#9aa3ad}
+#fut,#agp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#agrow{display:block}#agnews{}
+#bot{display:flex;flex-direction:column;gap:6px}
+.p{background:#111821;border:1px solid #1e2a38;border-radius:4px;padding:6px;overflow:hidden;min-width:0}
+table{width:100%;border-collapse:collapse}td,th{padding:0 3px;text-align:right;white-space:nowrap}th{color:#8899aa;font-weight:normal}td:first-child,th:first-child{text-align:left}
+.up{color:#3fd47a}.dn{color:#ff5c5c}.src{color:#667788;font-size:10px;margin-top:3px;overflow-wrap:anywhere}.err{color:#ffb000}
+.chart{height:110px}
+#side{position:sticky;top:6px;height:calc(100vh - 12px);display:grid;grid-template-rows:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr);gap:6px;min-width:0;align-self:start}
+#news,#gnews,#agnews{display:flex;flex-direction:column;min-height:0;overflow:hidden;height:100%}#side .news{flex:1 1 auto;overflow:auto;min-height:0}.news div{border-bottom:1px solid #1b2531;padding:3px 0}#side .p{display:flex;flex-direction:column;min-height:0}#side .src{flex:0 0 auto}
+#side h2{font-size:12px}#side .src{max-height:3.6em;overflow:auto}
+#fx>div{flex-wrap:wrap}
+#ves{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:6px}
+#ves .vt{overflow:auto;font-size:11px;max-height:470px}#ves .vt td{white-space:normal;text-align:left}#ves #vm{height:440px;border-radius:4px;overflow:hidden;border:1px solid #888}#ves .vs{grid-column:1/3}
+#wx{display:flex;flex-direction:column}#wx .maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}#wx .maps>div{aspect-ratio:4.6/5.6}
+a{color:#9cc9ff;text-decoration:none}.tag{display:inline-block;width:52px;color:#000;border-radius:2px;text-align:center;font-size:10px;margin-right:4px}
+.world,.politics{background:#d0d6de}.macro,.business{background:#f2c46d}.usda,.us{background:#3fd47a}.eu{background:#7fb8ff}.brazil{background:#ffe066}.argentina{background:#9fd8ff}.estimates{background:#c58cff}.shipping{background:#ff9a5c}.markets{background:#8fe3b0}.energy{background:#ffb000}.ags{background:#3fd47a}.war{background:#ff5c5c}.movers{background:#7fd1ff}.vessels{background:#c58cff}
+@media (max-height:850px){#side .src{display:none}#side h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+@media (max-width:1500px){body{font-size:12px}td,th{padding:0 2px}#ves{grid-template-columns:1fr}#ves .vs{grid-column:1}}
+.tag.forexlive{background:#1f4e79}.tag.fx{background:#5b3a8a}.ck{cursor:pointer}tr.ck:hover td,h2.ck:hover{background:#1a2533}
+#hm{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:999}#hm.on{display:flex}
+#hb{width:900px;height:560px;max-width:96vw;max-height:94vh;background:#111821;border:1px solid #2e4058;border-radius:6px;padding:8px;display:flex;flex-direction:column;box-shadow:0 8px 30px #000}
+#hb{position:fixed}#hb .hd{cursor:move;user-select:none;display:flex;justify-content:space-between;align-items:center}#hx{background:none;border:0;color:#d8dee9;font-size:20px;cursor:pointer}#hc{flex:1;min-height:0;touch-action:none}#hc *{touch-action:none}
+/* carry curves: static, never capture touch so the page scrolls */.chart,.chart *{touch-action:manipulation!important}.chart{pointer-events:none}</style></head><body>
+<div id="app"><div id="main"><header><h1>Energy &amp; Ags Commodities Trading</h1><span id="clock"></span></header><div id="top"><div class="p" id="fx"></div><div class="p" id="crack"></div><div class="p" id="macro"></div></div><div id="fut"><div class="p" id="p_CL"></div><div class="p" id="p_BZ"></div><div class="p" id="p_HO"></div><div class="p" id="p_RB"></div><div class="p" id="p_NG"></div><div class="p" id="p_TTF"></div></div><div class="p" id="ves"></div><div id="agrow"><div id="agp"><div class="p" id="p_ZS"></div><div class="p" id="p_ZM"></div><div class="p" id="p_ZL"></div><div class="p" id="p_ZC"></div><div class="p" id="p_ZW"></div><div class="p" id="p_KE"></div><div class="p" id="crush" style="grid-column:1/-1"></div></div></div><div class="p" id="wx"></div></div><div id="side"><div class="p" id="news"></div><div class="p" id="gnews"></div><div class="p" id="agnews"></div></div></div><div id="g" style="display:none"></div>
+<script>
+const PANELS=[["CL","WTI Crude"],["BZ","Brent Crude"],["HO","NY Heating Oil / ULSD"],["NG","Henry Hub Nat Gas"],["TTF","EU Nat Gas TTF"],["RB","RBOB Gasoline"],["ZS","Soybeans"],["ZM","Soybean Meal"],["ZL","Soybean Oil"],["ZC","Corn"],["ZW","Wheat (SRW)"],["KE","KC Wheat (HRW)"]];
+const g=document.getElementById('g');
+const SUF={CL:'.NYM',BZ:'.NYM',HO:'.NYM',RB:'.NYM',NG:'.NYM',TTF:'.NYM',ZS:'.CBT',ZM:'.CBT',ZL:'.CBT',ZC:'.CBT',ZW:'.CBT',KE:'.CBT'};
+const L={paper_bgcolor:'#111821',plot_bgcolor:'#111821',font:{color:'#aab',size:10},margin:{l:40,r:8,t:6,b:24},xaxis:{gridcolor:'#1e2a38'},yaxis:{gridcolor:'#1e2a38'}};
+const C={displayModeBar:false,responsive:true};
+function mk(id,cls,t){let d=document.getElementById(id);if(!d){d=document.createElement('div');d.id=id;d.className='p '+(cls||'');g.appendChild(d)}d.innerHTML=t;return d}
+const f=(x,n=2)=>x==null?'—':(+x).toFixed(n), cl=x=>x>0?'up':x<0?'dn':'';
+const lt=s=>s?new Date(s).toLocaleString('en-GB',{timeZone:'Europe/Zurich',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+async function J(n){try{return await (await fetch('data/'+n+'.json?t='+Date.now(),{cache:'no-store'})).json()}catch(e){return {error:String(e)}}}
+async function prices(){const P=await J('prices');window._P=P;try{window._hlive&&window._hlive(P)}catch(e){console.warn('popup live update',e)}
+ // layout order
+ mk('fx','w2','');mk('crack','w2','');mk('macro','','');
+ for(const[k,n] of PANELS){const d=P[k]||{error:'not yet fetched'};const dec=['NG','HO','RB'].includes(k)?4:2;
+  let h=`<h2>${n} <span class=src>${d.unit||''}</span></h2>`;
+  if(!d.rows||!d.rows.length){h+=`<div class=err>UNAVAILABLE — ${d.error||d.error_last||''}</div>`}
+  else{h+='<table><tr><th>Contract</th><th>Last</th><th>Chg</th><th>%</th><th>As of</th></tr>'+d.rows.map(r=>`<tr class=ck data-sym="${r.contract}${SUF[k]}" data-name="${n} ${r.contract}"><td>${r.contract}</td><td>${f(r.last,dec)}</td><td class=${cl(r.chg)}>${f(r.chg,dec)}</td><td class=${cl(r.pct)}>${f(r.pct)}</td><td>${r.asof.slice(5)}</td></tr>`).join('')+'</table><div class=chart id=c_'+k+'></div>'}
+  h+=`<div class=src>${d.source||''} · DELAYED · fetched ${lt(P.updated)}</div>`;
+  mk('p_'+k,'',h);
+  if(d.rows&&d.rows.length)Plotly.newPlot('c_'+k,[{x:d.rows.map(r=>r.contract),y:d.rows.map(r=>r.last),mode:'lines+markers',line:{color:'#ffb000'}}],{...L,dragmode:false,xaxis:{...L.xaxis,fixedrange:true},yaxis:{...L.yaxis,fixedrange:true}},{...C,staticPlot:true,scrollZoom:false,doubleClick:false})}}
+async function cracks(){const c=await J('cracks');if(!c.dates){mk('crack','w2','<h2>Crack spreads</h2><div class=err>UNAVAILABLE '+(c.error||c.error_last||'')+'</div>');return}
+ const n=c.dates.length-1;
+ mk('crack','w2',`<h2>Cracks $/bbl — WTI 3-2-1 <b>${f(c.wti321[n])}</b> · Brent <b>${f(c.brent321[n])}</b> · HO–Brent <b>${f(c.ho_brent[n])}</b></h2><div id=cc style="height:195px"></div><div class=src>${c.formula}<br>${c.source} · ${lt(c.updated)}</div>`);
+ Plotly.newPlot('cc',[{x:c.dates,y:c.wti321,name:'WTI 3-2-1'},{x:c.dates,y:c.brent321,name:'Brent 3-2-1'},{x:c.dates,y:c.ho_brent,name:'HO–Brent'}],{...L,xaxis:{gridcolor:'#1e2a38',nticks:6,tickformat:'%d %b'},margin:{l:30,r:6,t:4,b:18},legend:{orientation:'h',y:1.18,font:{size:9}}},C)}
+async function fx(){const x=await J('fx');if(!x.spot){mk('fx','w2','<h2>EUR/USD</h2><div class=err>UNAVAILABLE '+(x.error||x.error_last||'')+'</div>');return}
+ const fu=(x.futures&&x.futures.rows)||[];
+ mk('fx','w2',`<h2 class=ck data-sym="EURUSD=X" data-name="EUR/USD spot">EUR/USD spot <b>${f(x.spot,5)}</b> <span class=${cl(x.chg)}>${f(x.pct)}%</span> · USD/EUR <b>${f(x.usdeur,5)}</b></h2>
+ <div style="display:flex;gap:10px"><table><tr><th>Tenor*</th><th>EURUSD</th><th>USDEUR</th><th>Fwd pts</th></tr>${x.forwards.map(r=>`<tr><td>${r.tenor}</td><td>${f(r.eurusd,5)}</td><td>${f(r.usdeur,5)}</td><td>${f(r.points,1)}</td></tr>`).join('')}</table>
+ <table><tr><th>CME 6E</th><th>Last</th><th>Chg</th><th>USDEUR</th></tr>${fu.map(r=>`<tr class=ck data-sym="${r.contract}.CME" data-name="CME Euro FX ${r.contract}"><td>${r.contract}</td><td>${f(r.last,5)}</td><td class=${cl(r.chg)}>${f(r.chg,5)}</td><td>${f(1/r.last,5)}</td></tr>`).join('')}</table></div>
+ <div class=src>SOFR ${x.rates.sofr}% (${x.rates.sofr_date}) · €STR ${x.rates.estr}% (${x.rates.estr_date}). ${x.source} · ${lt(x.updated)}</div>`)}
+async function news(){const n=await J('news');mk('news','w2',`<h2>Energy &amp; war news — oil · gas · products · OPEC · Hormuz · Russia–Ukraine · shipping · movers</h2><div class=news>${(n.items||[]).map(i=>`<div><span class="tag ${i.cat}">${i.cat}</span>${lt(i.ts)} · <a href="${i.link}" target=_blank>${i.title}</a> <span class=src>${i.source}</span></div>`).join('')||'<span class=err>UNAVAILABLE '+(n.error||'')+'</span>'}</div><div class=src>${n.source||''} · ${lt(n.updated)} ${(n.errors||[]).join('; ')}</div>`)}
+async function gnews(){const n=await J('gnews');mk('gnews','',`<h2>General / Markets news — world · macro · markets · politics</h2><div class=news>${(n.items||[]).map(i=>`<div><span class="tag ${i.cat}">${i.cat}</span>${lt(i.ts)} · <a href="${i.link}" target=_blank>${i.title}</a> <span class=src>${i.source}</span></div>`).join('')||'<span class=err>UNAVAILABLE '+(n.error||'')+'</span>'}</div><div class=src>${n.source||''} · ${lt(n.updated)} ${(n.errors||[]).join('; ')}</div>`)}
+async function agnews(){const n=await J('agnews');mk('agnews','',`<h2>Ags news — USDA · US · EU · Brazil · Argentina · estimates</h2><div class=news>${(n.items||[]).map(i=>`<div><span class="tag ${i.cat}">${i.cat}</span>${lt(i.ts)} · <a href="${i.link}" target=_blank>${i.title}</a> <span class=src>${i.source}</span></div>`).join('')||'<span class=err>UNAVAILABLE '+(n.error||n.error_last||'')+'</span>'}</div><div class=src>${n.source||''} · ${lt(n.updated)} ${(n.errors||[]).join('; ')}</div>`)}
+async function crush(){const c=await J('crush');if(!c.rows||!c.rows.length){mk('crush','','<h2>Soybean board crush</h2><div class=err>UNAVAILABLE '+(c.error||c.error_last||'')+'</div>');return}
+ const r0=c.rows[0];
+ mk('crush','',`<h2>Soybean board crush ($/bu) — front ${r0.set} <b>${f(r0.crush,3)}</b> <span class=${cl(r0.chg)}>${f(r0.chg,3)}</span> · oil share <b>${f(r0.oil_share,1)}%</b></h2>
+ <div style="display:flex;gap:8px"><table style="flex:0 0 auto;width:auto;font-size:11px"><tr><th>Set (beans/products)</th><th>Beans ¢</th><th>Meal $</th><th>Oil ¢</th><th>Crush $/bu</th><th>Chg</th><th>Oil %</th></tr>${c.rows.map(r=>`<tr><td>${r.set}</td><td>${f(r.beans,2)}</td><td>${f(r.meal,1)}</td><td>${f(r.oil,2)}</td><td><b>${f(r.crush,3)}</b></td><td class=${cl(r.chg)}>${f(r.chg,3)}</td><td>${f(r.oil_share,1)}</td></tr>`).join('')}</table>
+ <div id=crc style="flex:1;min-width:0;height:200px"></div></div><div class=src>${c.formula}<br>${c.source} · DELAYED · as of ${r0.asof} · fetched ${lt(c.updated)}</div>`);
+ if(c.hist)Plotly.newPlot('crc',[{x:c.hist.dates,y:c.hist.crush,name:'Crush $/bu ('+c.hist.set+')',line:{color:'#ffb000'}},{x:c.hist.dates,y:c.hist.oil_share,name:'Oil share %',yaxis:'y2',line:{color:'#7fd1ff',width:1}}],
+  {...L,margin:{l:36,r:36,t:4,b:22},legend:{orientation:'h',y:1.15,font:{size:9}},xaxis:{gridcolor:'#1e2a38',tickformat:'%b'},yaxis2:{overlaying:'y',side:'right',gridcolor:'rgba(0,0,0,0)'}},C)}
+function spk(v,up){if(!v||v.length<2)return '';const mn=Math.min(...v),mx=Math.max(...v),w=90,h=20;const p=v.map((y,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(h-1-(y-mn)/((mx-mn)||1)*(h-2)).toFixed(1)}`).join(' ');return `<svg class=spk viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill=none stroke="${up?'#3fd47a':'#ff5c5c'}" stroke-width=1.3 points="${p}"/></svg>`}
+async function macro(){const m=await J('macro');if(!m.rows||!m.rows.length){mk('macro','','<h2>Macro snapshot</h2><div class=err>UNAVAILABLE '+(m.error||m.error_last||'not yet fetched')+'</div>');return}
+ mk('macro','',`<h2>Macro snapshot — DXY · gold · UST 10Y · S&amp;P · Nasdaq · VIX · BTC</h2><table><tr><th></th><th>Last</th><th>Chg</th><th>%</th><th>1M</th></tr>${m.rows.map(r=>{const y=r.ticker=='^TNX';return `<tr class=ck data-sym="${r.ticker}" data-name="${r.name}"><td>${r.name}</td><td>${f(r.last,r.dec)}${y?'%':''}</td><td class=${cl(r.chg)}>${y?f(r.chg*100,1)+'bp':f(r.chg,r.dec)}</td><td class=${cl(r.pct)}>${f(r.pct)}</td><td>${spk(r.spark,r.spark[r.spark.length-1]>=r.spark[0])}</td></tr>`}).join('')}</table><div class=src>${m.source} · ${lt(m.updated)} ${(m.errors||[]).join('; ')}</div>`)}
+async function vessels(){const v=await J('vessels');if(!v.verified)return;
+ const V=[...v.verified.map(r=>({...r,status:'verified'})),...(v.auto||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+ const row=(r,i,p=r.status=='pending')=>`<tr${p?' class=ap':''}><td><b style='color:${p?'#8a8f98':'#ff5c5c'}'>${i+1}</b>${p?' <span class=pend>pending</span>':r.status=='confirmed'?' <span class=conf>auto</span>':''}</td><td>${(r.date||'').slice(5)}</td><td>${r.vessel}</td><td>${r.imo||'not reported'}</td><td>${r.type}</td><td>${r.cargo}</td><td>${r.location}</td><td>${r.sources?r.sources.map(s=>`<a href="${s.link}" target=_blank>${s.source}</a>`).join(', ')+` (${r.n_sources} reputable)`:r.source}</td></tr>`;
+ mk('ves','w2',`<div class=vt><h2>Merchant vessels hit — verified + auto-detected <span class=src>last checked ${lt(v.checked||v.updated)} · ${v.articles_scanned||0} articles scanned</span></h2><table><tr><th>#</th><th>Date</th><th>Vessel</th><th>IMO</th><th>Type</th><th>Cargo</th><th>Location</th><th>Source</th></tr>${V.map((r,i)=>row(r,i)).join('')}</table><h2 style='margin-top:6px'>Live incident reports (unverified headlines)</h2><div class=news style="max-height:150px;overflow:auto">${v.reports.map(i=>`<div>${lt(i.ts)} · <a href="${i.link}" target=_blank>${i.title}</a> <span class=src>${i.source||''}</span></div>`).join('')}</div></div><div id=vm></div><div class='src vs'>${v.source} ${(v.errors||[]).join('; ')} · positions approximate · fetched ${lt(v.updated)}</div>`);
+ const places=[["Persian Gulf",51.6,27.3,14,'#1f4e79'],["Gulf of Oman",58.7,24.3,13,'#1f4e79'],["Strait of<br>Hormuz",57.75,26.75,11,'#1f4e79'],["IRAN",54.5,29.6,13,'#444'],["SAUDI ARABIA",48.6,24.2,12,'#444'],["UAE",54.2,23.6,12,'#444'],["OMAN",58.4,22.7,12,'#444'],["QATAR",51.2,25.1,10,'#444'],["IRAQ",47.4,30.6,10,'#444'],["KUWAIT",47.6,29.4,9,'#444'],["BAHRAIN",50.2,26.3,8,'#444']];
+ const ports=[["Ras Tanura",50.16,26.64,"bottom right"],["Jebel Ali",55.03,24.99,"bottom left"],["Bandar Abbas",56.27,27.18,"top left"],["Fujairah",56.36,25.12,"bottom right"],["Khor Fakkan",56.35,25.34,"middle right"],["Muscat",58.59,23.61,"bottom left"],["Sohar",56.75,24.36,"bottom left"]];
+ Plotly.newPlot('vm',[
+  {type:'scattergeo',lon:places.map(p=>p[1]),lat:places.map(p=>p[2]),text:places.map(p=>p[0]),mode:'text',textfont:{size:places.map(p=>p[3]),color:places.map(p=>p[4]),family:'Arial'},hoverinfo:'skip'},
+  {type:'scattergeo',lon:ports.map(p=>p[1]),lat:ports.map(p=>p[2]),text:ports.map(p=>p[0]),mode:'markers+text',textposition:ports.map(p=>p[3]),marker:{symbol:'square',size:6,color:'#222'},textfont:{size:10,color:'#222',family:'Arial'},hoverinfo:'text'},
+  {type:'scattergeo',lon:V.map(r=>r.lon),lat:V.map(r=>r.lat),mode:'markers+text',text:V.map((r,i)=>String(i+1)),textfont:{color:'#fff',size:12,family:'Arial Black'},marker:{size:24,color:V.map(r=>r.status=='pending'?'#8a8f98':'#d00000'),line:{color:'#fff',width:2}},
+   hovertext:V.map((r,i)=>`#${i+1}${r.status=='pending'?' PENDING':''} ${r.vessel} (IMO ${r.imo}) ${r.date}<br>${r.type}<br>${r.location}`),hoverinfo:'text'}],
+  {paper_bgcolor:'#f4f1ea',showlegend:false,margin:{l:0,r:0,t:0,b:0},geo:{projection:{type:'mercator'},lonaxis:{range:[48,60.2]},lataxis:{range:[22.8,30.3]},resolution:50,bgcolor:'#f4f1ea',showland:true,landcolor:'#ece4d2',showocean:true,oceancolor:'#bcdcf2',showlakes:true,lakecolor:'#bcdcf2',showcoastlines:true,coastlinecolor:'#2b2b2b',coastlinewidth:1.2,showcountries:true,countrycolor:'#555',countrywidth:1,showframe:true,framecolor:'#999'}},C)}
+async function weather(){const w=await J('weather'),c=await J('clim');if(!w.precip7){mk('wx','w4','<h2>Weather</h2><div class=err>UNAVAILABLE '+(w.error||'')+'</div>');return}
+ const lat=[],lon=[];for(const a of w.lat)for(const b of w.lon){lat.push(a);lon.push(b)}
+ const an=c.clim7?w.precip7.map((p,i)=>+(p-c.clim7[i]).toFixed(1)):null;
+ mk('wx','w4',`<h2>South America grain belt — 7-day forecast (${w.days[0]} → ${w.days[6]})</h2><div class=maps><div id=w1></div><div id=w2></div><div id=w3></div></div>
+ <div class=src>${w.source} · ${lt(w.updated)}. Anomaly = forecast minus ${c.clim7?c.years+' mean for same 7-day window ('+c.source+')':'climatology UNAVAILABLE: '+(c.error||c.error_last||'computing')}. Boxes: MT, PR, RS, Pampas.</div>`);
+ const t=Date.now();for(const[id,n] of [['w1','precip'],['w2','tmax'],['w3','anom']]){const e=document.getElementById(id);
+  if(n=='anom'&&!an){e.innerHTML='<div class=err>Anomaly unavailable (climatology computing)</div>';continue}
+  e.innerHTML=`<img src="maps/${n}.png?t=${t}" style="width:100%;height:100%;object-fit:contain" onerror="this.outerHTML='<div class=err>map not rendered yet ${w.maps_error||''}</div>'">`}}
+async function all(){await prices();await Promise.all([fx(),cracks(),crush(),macro()]);await Promise.all([news(),gnews(),agnews(),vessels(),weather()])}
+all();let BUILT='';async function bt(){const b=await J('build');BUILT=b.built?' · data built '+new Date(b.built).toLocaleString('en-GB',{timeZone:'Europe/Zurich',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' Geneva':''}bt();
+setInterval(()=>{bt();all()},300000);
+setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleString('en-GB',{timeZone:'Europe/Zurich'})+' Geneva · data delayed'+BUILT,1000);
+let _rt;window.addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(()=>document.querySelectorAll('.js-plotly-plot').forEach(e=>Plotly.Plots.resize(e)),150)});
+
+document.body.insertAdjacentHTML('beforeend','<div id=hm><div id=hb><div class=hd><h2 id=ht></h2><button id=hx title=Close>&times;</button></div><div id=hn class=src></div><div id=hc></div></div></div>');
+const hm=document.getElementById('hm');function hclose(){hm.classList.remove('on');window._hlive=null;const g=document.getElementById('hc');if(g._hab)g._hab.abort();Plotly.purge('hc')}
+document.getElementById('hx').onclick=hclose;hm.addEventListener('click',e=>{if(e.target===hm)hclose()});document.addEventListener('keydown',e=>{if(e.key==='Escape')hclose()});
+document.addEventListener('click',e=>{const t=e.target.closest('.ck');if(t&&!e.target.closest('a'))openChart(t.dataset.sym,t.dataset.name)});
+async function openChart(sym,name){hm.classList.add('on');window._hcenter();document.getElementById('ht').textContent=(name||sym)+' — daily';const hn=document.getElementById('hn'),hc=document.getElementById('hc');hn.textContent='loading '+sym+'…';Plotly.purge(hc);hc.innerHTML='';
+ let h;try{h=await (await (fetch('hist/'+sym.replace(/[^A-Za-z0-9.\-]/g,'_')+'.json?t='+Math.floor(Date.now()/600000))).then(r=>{if(!r.ok)throw new Error('no saved history for '+sym+' in the last build');return r})).json()}catch(e){h={error:String(e)}}
+ if(h.error||!h.dates){hn.innerHTML='<span class=err>'+(h.error||'not enough history')+'</span>';return}
+ document.getElementById('ht').textContent=(name||sym)+' — daily · '+h.symbol+(h.continuous?' (continuous front month)':'');document.getElementById('ht').insertAdjacentHTML('beforeend','<span id=hlive class=src></span>');
+ hn.innerHTML=(h.note?'<span class=err>'+h.note+'</span> · ':'')+(h.warn?'<span class=err>'+h.warn+'</span> · ':'')+'Yahoo Finance, delayed · SMA 20/50/100/200 on closes · Fibonacci on the 1-year swing'+(h.volume?'':' · no volume data');
+ const n=h.dates.length,cut=new Date(new Date(h.dates[n-1]).getTime()-365*864e5).toISOString().slice(0,10);let s0=h.dates.findIndex(d=>d>=cut);if(s0<0)s0=0;const _s0=s0,sl=a=>a.slice(s0),x=sl(h.dates),vy=!!h.volume;
+ const tr=[{type:'candlestick',x,open:sl(h.open),high:sl(h.high),low:sl(h.low),close:sl(h.close),name:h.symbol,increasing:{line:{color:'#3fd47a'}},decreasing:{line:{color:'#ff5c5c'}},yaxis:'y2'},
+  ...[[20,'#ff7ac6'],[50,'#ffb000'],[100,'#7fd1ff'],[200,'#c58cff']].filter(([k])=>h['sma'+k]).map(([k,c])=>({type:'scatter',mode:'lines',x,y:sl(h['sma'+k]),name:k+'d SMA',line:{color:c,width:1.3},yaxis:'y2'}))];
+ if(vy)tr.push({type:'bar',x,y:sl(h.volume),name:'Volume',marker:{color:sl(h.close).map((c,i)=>c>=sl(h.open)[i]?'#2a7f4f':'#8f3a3a')},yaxis:'y'});
+ // Fibonacci retracements on the charted year: swing = highest high / lowest low; low before high = up-move (measured down from the high).
+ const FIB=fibLevels(sl(h.high),sl(h.low),/^(NG|HO|RB)/.test(h.symbol)?4:2);
+ if(FIB.levels.length)tr.push({type:'scatter',mode:'lines',x:[null],y:[null],name:'Fibonacci',legendgroup:'fib',hoverinfo:'skip',line:{color:FIB.color,width:1,dash:'dash'},yaxis:'y2',meta:'fib'});
+ Plotly.newPlot(hc,tr,{...L,shapes:FIB.shapes,annotations:FIB.annotations,margin:{l:50,r:10,t:10,b:30},dragmode:false,showlegend:true,legend:{orientation:'h',y:1.06,font:{size:10}},
+  xaxis:{gridcolor:'#1e2a38',rangeslider:{visible:false},rangebreaks:[{bounds:['sat','mon']}]},
+  yaxis2:{domain:vy?[0.25,1]:[0,1],gridcolor:'#1e2a38'},yaxis:{domain:[0,0.2],gridcolor:'#1e2a38',visible:vy,fixedrange:true}},{...C,scrollZoom:false,doubleClick:false});
+ hclamp(hc,x,sl(h.low),sl(h.high));
+ hc.on('plotly_restyle',()=>{const fi=hc.data.findIndex(t=>t.meta==='fib');if(fi<0)return;const on=hc.data[fi].visible!=='legendonly'&&hc.data[fi].visible!==false,u={};
+  (hc.layout.shapes||[]).forEach((sh,i)=>{if(sh.name==='fib'&&sh.visible!==on)u[`shapes[${i}].visible`]=on});(hc.layout.annotations||[]).forEach((an,i)=>{if(an.name==='fib'&&an.visible!==on)u[`annotations[${i}].visible`]=on});
+  if(Object.keys(u).length)Plotly.relayout(hc,u)});   // one legend entry toggles all Fibonacci lines + labels
+ window._hlive=P=>hlive(hc,h.symbol,vy,P);if(window._P)window._hlive(window._P)}
+function fibLevels(hi,lo,dec){
+ let iH=-1,iL=-1;hi.forEach((v,i)=>{if(v!=null&&(iH<0||v>hi[iH]))iH=i});lo.forEach((v,i)=>{if(v!=null&&(iL<0||v<lo[iL]))iL=i});
+ const color='rgba(214,180,74,0.55)',out={levels:[],shapes:[],annotations:[],color};if(iH<0||iL<0||hi[iH]<=lo[iL])return out;
+ const H=hi[iH],Lo=lo[iL],up=iL<iH;   // up-move: 0% at the high, 100% at the low; down-move: 0% at the low
+ for(const r of [0,0.236,0.382,0.5,0.618,0.786,1]){const y=up?H-r*(H-Lo):Lo+r*(H-Lo);out.levels.push([r,y]);
+  out.shapes.push({type:'line',name:'fib',xref:'paper',x0:0,x1:1,yref:'y2',y0:y,y1:y,line:{color,width:0.8,dash:'dash'},layer:'below'});
+  out.annotations.push({name:'fib',xref:'paper',x:1,xanchor:'right',yref:'y2',y,yanchor:'bottom',showarrow:false,text:(r*100).toFixed(1).replace(/\.0$/,'')+'% '+y.toFixed(dec),font:{size:9,color:'rgba(230,200,110,0.85)'},bgcolor:'rgba(17,24,33,0.55)',borderpad:1})}
+ out.dir=up?'up':'down';return out}
+// Live candle (Gerardo, 22 Oct 2026): on every prices() refresh (120 s) update today's candle of the open popup from the live quote of the
+// same contract (continuous =F -> that product's front row). close=last, high=max, low=min; a newer quote date appends a candle.
+// Trace arrays are updated in place via restyle with the current (clamped) ranges, so the user's zoom/pan view is kept.
+function hlive(hc,symbol,vy,P){
+ if(!hc.data||!hc.data.length||!P)return;const ROWS=Object.values(P).filter(v=>v&&v.rows).flatMap(v=>v.rows.map((r,i)=>({...r,front:i===0})));
+ let row=null;const m=symbol.match(/^([A-Z0-9]+?[FGHJKMNQUVXZ]\d{2})\.[A-Z]{3}$/),c=symbol.match(/^([A-Z0-9]+)=F$/);
+ if(m)row=ROWS.find(r=>r.contract===m[1]);else if(c)row=ROWS.find(r=>r.front&&r.contract.length===c[1].length+3&&r.contract.startsWith(c[1]));
+ const el=document.getElementById('hlive');
+ if(!row||row.last==null||!row.asof){if(el)el.textContent='';return}
+ const tr=hc.data[0],x=tr.x.slice(),o=tr.open.slice(),hh=tr.high.slice(),ll=tr.low.slice(),cc=tr.close.slice(),n=x.length,last=+row.last,day=String(row.asof).slice(0,10),ld=String(x[n-1]).slice(0,10);
+ if(day<ld)return;
+ if(day===ld){cc[n-1]=last;hh[n-1]=Math.max(hh[n-1],last);ll[n-1]=Math.min(ll[n-1],last)}
+ else{x.push(day);o.push(row.open!=null?+row.open:cc[n-1]);cc.push(last);hh.push(Math.max(last,o[o.length-1]));ll.push(Math.min(last,o[o.length-1]))}
+ const add=x.length>n;
+ Plotly.restyle(hc,{x:[x],open:[o],high:[hh],low:[ll],close:[cc]},[0]);
+ if(add){const idx=[],xs=[],ys=[];hc.data.forEach((t,i)=>{if(i>0&&t.type==='scatter'&&t.meta!=='fib'){idx.push(i);xs.push([...t.x,day]);ys.push([...t.y,t.y[t.y.length-1]])}});if(idx.length)Plotly.restyle(hc,{x:xs,y:ys},idx)}
+ const vi=hc.data.findIndex(t=>t.type==='bar');
+ if(vy&&vi>=0){const v=hc.data[vi],vx=v.x.slice(),vv=v.y.slice(),col=(v.marker&&Array.isArray(v.marker.color))?v.marker.color.slice():null;
+  if(add){vx.push(day);vv.push(row.vol!=null?+row.vol:0);if(col)col.push('#2a7f4f')}else if(row.vol!=null)vv[vv.length-1]=+row.vol;
+  if(col)col[col.length-1]=cc[cc.length-1]>=o[o.length-1]?'#2a7f4f':'#8f3a3a';const u={x:[vx],y:[vv]};if(col)u['marker.color']=[col];Plotly.restyle(hc,u,[vi])}
+ if(hc._hupdate)hc._hupdate(x,ll,hh);
+ const tm=P.updated?new Date(P.updated).toLocaleTimeString('en-GB',{timeZone:'Europe/Zurich',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}):'';
+ if(el){el.textContent=` · live ${row.contract} ${last} · last ${tm}`;el.dataset.last=last;el.dataset.day=day}
+}
+// Popup pan/zoom limits (Gerardo, 22 Oct 2026) — hard clamp, enforced DURING the gesture (mouse + touch):
+//  * X: view may extend at most PAN_FRAC (50%) of the VISIBLE span past the first/last candle; Y: same past min low / max high.
+//  * Zoom-out cap: visible span <= data span x (1+PAN_FRAC). Zoom-in floor: MIN_BARS candles; price axis >= YMIN of data low-high span.
+//  * Plotly's own pan is off (dragmode:false); pan + two-finger pinch are custom pointer handlers applied via rAF-throttled relayout.
+//    Wheel zoom is custom too (cursor-anchored, clamped per event). Double-click / double-tap resets.
+//  * The date axis has weekend rangebreaks, so all maths runs in "trading time" (weekends removed), exactly as Plotly draws it.
+//  * If after an x change fewer than 50% of the visible candles fit in the price window, y is refit to the visible candles.
+const PAN_FRAC=0.5,MIN_BARS=10,YMIN=0.05,YFIT_MIN=0.5,YFIT_PAD=0.05,DAY=864e5,WEEK=7*DAY,MON0=4*DAY,TD=5*DAY;
+const tlin=v=>{const k=Math.floor((v-MON0)/WEEK),o=v-MON0-k*WEEK;return k*TD+Math.min(o,TD)};   // calendar ms -> trading ms
+const tunl=L=>{const k=Math.floor(L/TD);return MON0+k*WEEK+(L-k*TD)};                            // trading ms -> calendar ms
+function hclamp(hc,x,lo,hi){
+ if(hc._hab)hc._hab.abort();const ab=new AbortController();hc._hab=ab;const sig={signal:ab.signal};
+ const ms=v=>typeof v==='number'?v:new Date(String(v).replace(' ','T')+(/Z|[+-]\d\d:?\d\d$/.test(v)?'':'Z')).getTime(); // Plotly date strings are UTC
+ const iso=v=>new Date(v).toISOString().slice(0,23).replace('T',' ');
+ let t,n,T0,T1,DX,yl,yh,DY,WX,WY,X0,Y0;const ip=0.04;
+ const setData=(xx,l,u)=>{t=xx.map(d=>tlin(ms(d)));n=t.length;lo=l;hi=u;T0=t[0];T1=t[n-1];DX=T1-T0;
+  yl=Math.min(...lo.filter(v=>v!=null));yh=Math.max(...hi.filter(v=>v!=null));DY=(yh-yl)||Math.abs(yh)||1;
+  WX=DX*(1+PAN_FRAC);WY=DY*(1+PAN_FRAC);X0=[T0-ip*DX,T1+ip*DX];Y0=[yl-ip*DY,yh+ip*DY]};
+ setData(x,lo,hi);if(n<2)return;
+ hc._hupdate=(xx,l,u)=>setData(xx,l,u);   // live candle: widen the limits to the new data, keep the current view
+ const fit=(a,b,L0,L1,W,Wmin=0)=>{if(b<a)[a,b]=[b,a];const w=Math.max(Math.min(b-a,W),Wmin),m=(a+b)/2;a=m-w/2;b=m+w/2;const l=L0-PAN_FRAC*w,u=L1+PAN_FRAC*w;
+  if(a<l){b+=l-a;a=l}if(b>u){a-=b-u;b=u}return[a,b]};
+ const clamp=(a,b,c,d,refit)=>{
+  [a,b]=fit(a,b,T0,T1,WX);
+  let vis=[];for(let i=0;i<n;i++)if(t[i]>=a&&t[i]<=b)vis.push(i);
+  if(vis.length<MIN_BARS){const m=(a+b)/2;let i=t.findIndex(v=>v>=m);if(i<0)i=n-1;const i0=Math.max(0,Math.min(i-Math.floor(MIN_BARS/2),n-MIN_BARS)),i1=Math.min(n-1,i0+MIN_BARS-1);
+   a=t[i0]-DAY/2;b=t[i1]+DAY/2;[a,b]=fit(a,b,T0,T1,WX);vis=[];for(let k=i0;k<=i1;k++)vis.push(k)}
+  if(refit&&vis.length){let ins=0,vl=Infinity,vh=-Infinity;for(const i of vis){if(lo[i]==null||hi[i]==null)continue;if(lo[i]>=c&&hi[i]<=d)ins++;vl=Math.min(vl,lo[i]);vh=Math.max(vh,hi[i])}
+   if(isFinite(vl)&&ins<YFIT_MIN*vis.length){const p=((vh-vl)||Math.abs(vh)*0.01||1)*YFIT_PAD;c=vl-p;d=vh+p}}
+  [c,d]=fit(c,d,yl,yh,WY,YMIN*DY);return[a,b,c,d]};
+ let cur=[...X0,...Y0],raf=0,pend=null,busy=0;
+ const push=r=>{busy++;return Plotly.relayout(hc,{'xaxis.autorange':false,'yaxis2.autorange':false,'xaxis.range':[iso(tunl(r[0])),iso(tunl(r[1]))],'yaxis2.range':[r[2],r[3]]}).finally(()=>busy--)};
+ const apply=(r,now)=>{cur=r;pend=r;if(now){if(raf){cancelAnimationFrame(raf);raf=0}pend=null;return push(r)}
+  if(!raf)raf=requestAnimationFrame(()=>{raf=0;if(pend){const p=pend;pend=null;push(p)}})};
+ hc._hview=()=>({x:[tunl(cur[0]),tunl(cur[1])],y:[cur[2],cur[3]]});   // for tests
+ const reset=()=>apply(clamp(...X0,...Y0,false),true);
+ reset();
+ // wheel zoom: custom (Plotly's scrollZoom overshoots the limits until its debounce fires), anchored at the cursor, clamped every event
+ hc.addEventListener('wheel',e=>{const p=rel(e),ar=area(p);if(!ar)return;e.preventDefault();
+  const fl=hc._fullLayout,xa=fl.xaxis,ya=fl.yaxis2,dyp=e.deltaMode===1?e.deltaY*16:e.deltaMode===2?e.deltaY*400:e.deltaY,s=Math.exp(Math.max(-300,Math.min(300,dyp))/500);
+  let[a,b,c,d]=cur;const fx=(p[0]-xa._offset)/xa._length,ax=a+fx*(b-a),wX=(b-a)*s;a=ax-fx*wX;b=a+wX;
+  if(ar==='price'){const fy=(p[1]-ya._offset)/ya._length,ay=d-fy*(d-c),wY=(d-c)*s;d=ay+fy*wY;c=d-wY}
+  apply(clamp(a,b,c,d,true))},{...sig,passive:false});
+ // any other relayout (e.g. programmatic) -> clamp
+ const ev=(e,k)=>e&&e[k+'[0]']!=null&&e[k+'[1]']!=null?[e[k+'[0]'],e[k+'[1]']]:e&&Array.isArray(e[k])?e[k]:null;
+ hc.on('plotly_relayout',e=>{if(busy||g)return;const ex=ev(e,'xaxis.range'),ey=ev(e,'yaxis2.range');if(!ex&&!ey)return;
+  let[a,b,c,d]=cur;if(ex){[a,b]=ex.map(v=>tlin(ms(v)))}if(ey){[c,d]=ey.map(Number)}if(![a,b,c,d].every(isFinite))[a,b,c,d]=cur;
+  const xch=Math.abs((b-a)-(cur[1]-cur[0]))>1e-6*DX||Math.abs(a-cur[0])>1e-6*DX;const r=clamp(a,b,c,d,xch);
+  const fl=hc._fullLayout,fx=fl.xaxis.range.map(v=>tlin(ms(v))),fy=fl.yaxis2.range;
+  cur=r;if(Math.abs(fx[0]-r[0])>6e4||Math.abs(fx[1]-r[1])>6e4||Math.abs(fy[0]-r[2])>1e-6*DY||Math.abs(fy[1]-r[3])>1e-6*DY)apply(r,true)});
+ // custom pan + pinch
+ const pts=new Map();let g=null,lastTap=null;
+ const rel=e=>{const b=hc.getBoundingClientRect();return[e.clientX-b.left,e.clientY-b.top]};
+ const area=([px,py])=>{const fl=hc._fullLayout;if(!fl||!fl.xaxis)return null;const xa=fl.xaxis,ya=fl.yaxis2,yv=fl.yaxis;
+  if(px<xa._offset||px>xa._offset+xa._length)return null;if(py>=ya._offset&&py<=ya._offset+ya._length)return'price';
+  if(yv&&yv.visible&&py>=yv._offset&&py<=yv._offset+yv._length)return'vol';return null};
+ const begin=()=>{const fl=hc._fullLayout,P=[...pts.values()];g={r0:cur.slice(),area:g?g.area:area(P[0]),p0:P.map(p=>p.slice()),xl:fl.xaxis._length,yl:fl.yaxis2._length,xo:fl.xaxis._offset,yo:fl.yaxis2._offset,moved:g?g.moved:0,dyMax:g?g.dyMax:0}};
+ hc.addEventListener('pointerdown',e=>{if(e.button>0)return;const p=rel(e);if(!pts.size&&!area(p))return;
+  pts.set(e.pointerId,p);try{hc.setPointerCapture(e.pointerId)}catch(_){}begin();e.preventDefault()},sig);
+ hc.addEventListener('pointermove',e=>{if(!g||!pts.has(e.pointerId))return;pts.set(e.pointerId,rel(e));e.preventDefault();
+  const P=[...pts.values()],[a0,b0,c0,d0]=g.r0,perX=(b0-a0)/g.xl,perY=(d0-c0)/g.yl;let a,b,c,d,refit=false;
+  if(P.length===1||g.p0.length===1){const dx=P[0][0]-g.p0[0][0],dy=P[0][1]-g.p0[0][1];g.moved=Math.max(g.moved,Math.hypot(dx,dy));
+   a=a0-dx*perX;b=b0-dx*perX;if(g.area==='price'){c=c0+dy*perY;d=d0+dy*perY;g.dyMax=Math.max(g.dyMax,Math.abs(dy))}else{c=c0;d=d0}}
+  else{const m0=[(g.p0[0][0]+g.p0[1][0])/2,(g.p0[0][1]+g.p0[1][1])/2],m1=[(P[0][0]+P[1][0])/2,(P[0][1]+P[1][1])/2];
+   const s=Math.hypot(g.p0[0][0]-g.p0[1][0],g.p0[0][1]-g.p0[1][1])/Math.max(10,Math.hypot(P[0][0]-P[1][0],P[0][1]-P[1][1]));g.moved=99;
+   const ax=a0+(m0[0]-g.xo)*perX,wX=(b0-a0)*s;a=ax-(m1[0]-g.xo)*wX/g.xl;b=a+wX;
+   if(g.area==='price'){const ay=d0-(m0[1]-g.yo)*perY,wY=(d0-c0)*s;d=ay+(m1[1]-g.yo)*wY/g.yl;c=d-wY}else{c=c0;d=d0}refit=true}
+  apply(clamp(a,b,c,d,refit))},sig);
+ const end=e=>{if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);try{hc.releasePointerCapture(e.pointerId)}catch(_){}
+  if(pts.size){begin();return}
+  const G=g;g=null;if(!G)return;
+  if(G.moved<6&&e.type==='pointerup'){const now=performance.now(),p=rel(e);
+   if(lastTap&&now-lastTap.t<350&&Math.hypot(p[0]-lastTap.p[0],p[1]-lastTap.p[1])<25){lastTap=null;reset();return}lastTap={t:now,p};return}
+  apply(clamp(...cur,G.dyMax<8),true)};   // horizontal pan (or pinch): refit y if candles fell out of the window
+ hc.addEventListener('pointerup',end,sig);hc.addEventListener('pointercancel',end,sig);
+ hc.addEventListener('dblclick',e=>{if(area(rel(e)))reset()},sig);
+}
+
+
+
+{const hb=document.getElementById('hb'),hd=hb.querySelector('.hd');let dx,dy,dr=false;
+ const center=()=>{hb.style.left=Math.max(0,(innerWidth-hb.offsetWidth)/2)+'px';hb.style.top=Math.max(0,(innerHeight-hb.offsetHeight)/2)+'px'};window._hcenter=center;
+ hd.addEventListener('mousedown',e=>{if(e.target.id==='hx')return;dr=true;dx=e.clientX-hb.offsetLeft;dy=e.clientY-hb.offsetTop;e.preventDefault()});
+ document.addEventListener('mousemove',e=>{if(!dr)return;hb.style.left=Math.min(Math.max(0,e.clientX-dx),innerWidth-hb.offsetWidth)+'px';hb.style.top=Math.min(Math.max(0,e.clientY-dy),innerHeight-hb.offsetHeight)+'px'});
+ document.addEventListener('mouseup',()=>dr=false);}
+{const q=new URLSearchParams(location.search).get('chart');if(q)setTimeout(()=>openChart(q,q),1500)}
+</script></body></html>
