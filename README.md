@@ -26,19 +26,6 @@ A scheduled GitHub Actions job runs `build.py` about every 15 minutes. It fetche
 - `.github/workflows/update.yml`: the schedule (every 15 minutes), manual runs and runs on every push
 - `requirements.txt`: Python dependencies
 
-## Run locally
-```
-pip install -r requirements.txt
-python build.py
-cd site && python -m http.server 8000   # then open http://localhost:8000
-```
-
-## Deploy your own copy
-1. Fork or copy the repository (it must be public for free Pages and Actions minutes).
-2. In **Settings → Pages**, set the source to **GitHub Actions**.
-3. In **Settings → Actions → General**, set workflow permissions to **Read and write**.
-4. Open the **Actions** tab and run **Update dashboard**. The first run takes 3–5 minutes.
-
 ## Notes and limits
 - Market data comes from free public sources, may be delayed, and isn't official exchange data. News comes from third-party feeds.
 - GitHub scheduled runs are best-effort and can start late or be skipped at busy times.
