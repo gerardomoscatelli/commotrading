@@ -106,6 +106,11 @@ def main():
     if "hist" not in skip: build_hist(f"{SITE}/hist")
     json.dump(dict(built=now(),jobs=RESULTS),open(f"{SITE}/data/build.json","w"),indent=1)
     shutil.copy(os.path.join(ROOT,"templates","index.html"),f"{SITE}/index.html")
+    assets_src=os.path.join(ROOT,"assets")
+    if os.path.isdir(assets_src):
+        assets_dst=os.path.join(SITE,"assets")
+        if os.path.isdir(assets_dst): shutil.rmtree(assets_dst)
+        shutil.copytree(assets_src, assets_dst)
     open(f"{SITE}/.nojekyll","w").close()
     print(json.dumps(RESULTS,indent=1))
 if __name__=="__main__": main()

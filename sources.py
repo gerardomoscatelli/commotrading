@@ -263,6 +263,18 @@ VTYPES=[("VLCC","VLCC crude tanker"),("Suezmax","Suezmax tanker"),("Aframax","Af
 STOP={"UKMTO","UAE","US","USA","UK","EU","UN","IRAN","IRGC","OIL","LNG","LPG","VLCC","BREAKING","UPDATE","CENTCOM","NATO","JMIC","IMO","AIS","GPS","OPEC","NEW","LIVE","WATCH","VIDEO",
  "HORMUZ","GULF","OMAN","RED","SEA","AP","ADNOC","NIOC","QATARENERGY","ARAMCO","US-FLAGGED","NEWS","OCTOBER","TASNIM","IRNA","CMA CGM","MAERSK","HAPAG","BBC","CNN","FT","WSJ","MAREX","MSC","CMA","CGM","USD","GMT","UTC","II","III","THE","AND","OF","A","IN","ON","AT","TO","SHIP","TANKER","VESSEL"}
 NAMEWORDS=r"[A-Z][A-Z0-9\.\-']+"
+COMMON=set("""severe major heavy massive large small big serious minor second third fresh foreign russian greek chinese indian british american sanctioned loaded empty qatari saudi emirati iraqi omani kuwaiti panamanian liberian maltese turkish another critical fatal deadly sunk sinking listing abandoned evacuated rescued commercial merchant civilian about above across after again against ahead air aircraft all allowed amid an and another any anchor anchorage area arrives as attack attacked attacks authorised awaits away back bay be before being below between blast blasts bound burns burning but by called capsized catches cargo carrier caught claims closed coast continues crew crews damage damaged declares despite disabled downs drifting drone drones during east engine engines escalate exiting explosion explosions explosive fire fired flagged fleet for from further gulf heading hit hits hundreds in incident including inside into iran iranian is it its latest least mile miles mine mines missile miles more most near new night north northeast northwest of off on one oil operator or out outside over owner permission port position rare report reported reports risks room rooms route said sails salvage says sea security shadow ship ships sinks south southeast southwest star starts strait strike strikes struck suspected targeted tanker tankers the this through to transit transiting two unauthorised unauthorized under unknown unidentified up vessel vessels war was waters west while with without""".split())
+def _plausible(n,ctx=""):
+    """Reject headline fragments: a ship name must not be built only from ordinary words, unless it carries a digit/No. or appears in ALL CAPS in the text."""
+    ws=[w.strip(".-'’").lower() for w in n.split() if w.strip(".-'’")]
+    if not ws: return False
+    if any(re.search(r"\d",w) for w in ws) and not all(w.isdigit() for w in ws): return True
+    if not all(w in COMMON or w.upper() in STOP for w in ws): return True
+    # all ordinary words: accept only if written in ALL CAPS inside mixed-case text (how outlets print ship names, e.g. ON PEACE)
+    return bool(ctx) and len(n.replace(" ",""))>=4 and ctx.upper()!=ctx and bool(re.search(r"(?<![A-Za-z])"+re.escape(n.upper())+r"(?![A-Za-z])",ctx))
+def _titlecase(t):
+    ws=[w for w in re.findall(r"[A-Za-z][A-Za-z']*",t) if len(w)>3]
+    return bool(ws) and sum(w[0].isupper() for w in ws)/len(ws)>0.75
 def _txt(h):return re.sub(r"\s+"," ",re.sub(r"<[^>]+>"," ",h or "")).strip()
 def _norm(n):return re.sub(r"[^A-Z0-9]","",re.sub(r"\(.*?\)","",n or "").upper())
 def _vparse(name,url,lim):
@@ -291,14 +303,15 @@ def extract(a):
     for m in re.finditer(r"\b"+VW+r"s?\s+(?:named\s+|called\s+)?"+cap+r"|"+cap+r"\s*(?:\(IMO|,\s*an?\s+[\w\- ]{0,25}"+VW+r")",X2,re.I if False else 0):
         w=(m.group(1) or m.group(2) or "").strip(" .-'")
         if w and all(x.strip(".") not in STOP for x in w.split()) and len(w.replace(" ",""))>=4: names.append(w)
-    for m in re.finditer(r"\b"+VW+r"\s+(?:named\s+)?((?:[A-Z][a-z]+)(?:\s+[A-Z][a-z]+){0,2})\b",X2):
+    X3=(a.get("summary","") if _titlecase(T) else X2)
+    for m in re.finditer(r"\b"+VW+r"\s+(?:named\s+)?((?:[A-Z][a-z]+)(?:\s+(?:[A-Z][a-z]+|\d{1,3})){0,2})\b",X3):
         ws=[]
         for w in m.group(1).split():
             if VERB.fullmatch(w) or w in ("Hit","By","In","Off","Near","Was","Is","Says","After","Reports","Reported","Amid","As","With","At","From","Under"): break
             ws.append(w)
         nm=" ".join(ws)
         if nm and nm.split()[0] not in ("Hit","Attacked","Struck","In","Off","Near","Was","Is","Says","After","The","Of","Sails","Attack","Attacks","Strike","Strikes","Incident","Traffic","Owners","Crew","Seized","Damaged","Carrying","Bound","Heading","Sinks","Sank","Catches","Ablaze"): names.append(nm.upper())
-    name=next((n for n in names if _norm(n) and _norm(n) not in STOP and not any(k.upper()==n.upper() for k in LOC)),None)
+    name=next((n for n in names if _norm(n) and _norm(n) not in STOP and not any(k.upper()==n.upper() for k in LOC) and _plausible(n,X2)),None)
     if not (imo or uk or name): return None
     ukn=None
     if uk:
@@ -328,7 +341,7 @@ def vessels():
         except Exception as e: errs.append(f"{nm}: {type(e).__name__}")
     try: old=json.load(open(os.path.join(os.path.dirname(__file__),"data","vessels.json")))
     except Exception: old={}
-    auto=[r for r in old.get("auto",[]) if r.get("date","9")>=str(dt.date.today()-dt.timedelta(days=21))]
+    auto=[r for r in old.get("auto",[]) if r.get("date","9")>=str(dt.date.today()-dt.timedelta(days=21)) and (r.get("claim") or r["vessel"].startswith("Unnamed") or _plausible(r["vessel"]))]
     vkeys=[_keys(r) for r in SEED]; corro=[]
     seen=set(); rep=[]
     for a in sorted(arts,key=lambda x:x["ts"] or "",reverse=True):
@@ -375,7 +388,16 @@ def macro():
             last,prev=float(h.iloc[-1]),float(h.iloc[-2])
             rows.append(dict(ticker=t,name=n,dec=d,last=last,chg=last-prev,pct=(last/prev-1)*100,asof=str(h.index[-1])[:16],spark=[round(float(x),4) for x in h.values],dates=[str(x)[:10] for x in h.index]))
         except Exception as e: errs.append(f"{t}: {type(e).__name__}")
-    return dict(rows=rows,errors=errs,source="Yahoo Finance (delayed); spark = 1-month daily closes; ^TNX quoted in % (chg in bp)")
+        if t=="GC=F":  # spot silver right below gold
+            try:
+                h=yf.Ticker("SI=F").history(period="1mo")["Close"].dropna(); sp=[round(float(x),4) for x in h.values]
+                ref=float(h.iloc[-2]); asof=str(h.index[-1])[:16]
+                try:
+                    j=requests.get("https://api.gold-api.com/price/XAG",headers=UA,timeout=15).json(); last=float(j["price"]); asof=j.get("updatedAt",asof); sp[-1]=round(last,4); nm="Silver spot $/oz"
+                except Exception as e: last=float(h.iloc[-1]); nm="Silver $/oz (COMEX)"; errs.append(f"XAG spot: {type(e).__name__}")
+                rows.append(dict(ticker="SI=F",name=nm,dec=2,last=last,chg=last-ref,pct=(last/ref-1)*100,asof=asof,spark=sp,dates=[str(x)[:10] for x in h.index]))
+            except Exception as e: errs.append(f"XAG: {type(e).__name__}")
+    return dict(rows=rows,errors=errs,source="Yahoo Finance (delayed); silver spot gold-api.com, chg vs prior COMEX close; spark = 1-month daily closes; ^TNX quoted in % (chg in bp)")
 
 REGIONS=dict(lat=(-38,-8),lon=(-66,-44))
 def _grid(step=2.0):
