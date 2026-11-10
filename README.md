@@ -1,32 +1,51 @@
-# Energy & Ags Commodities Trading — GitHub Pages version
+# MedCommodities — Energy & Ags Commodities Dashboard
 
-Static version of the dashboard. A scheduled GitHub Actions job runs `build.py` about every 15 minutes:
-it fetches every data source once (Yahoo Finance futures/FX/macro, SOFR/€STR, RSS + Google News RSS,
-GDELT, vessel-incident extractor, Open-Meteo weather + cartopy maps, climatology), writes static files
-into `site/` and publishes them to GitHub Pages. The page re-reads the data every 5 minutes and shows
-when the data was built (Geneva time).
+A static, self-updating market dashboard for grains, oilseeds, energy and macro, published on GitHub Pages.
 
-Page address: **https://gerardomoscatelli.github.io/commotrading/**
+**Live page:** https://gerardomoscatelli.github.io/commotrading/
 
-## Files
-- `build.py` – runs all jobs once, writes `site/` (index.html, data/*.json, maps/*.png, hist/*.json for the chart popup)
-- `sources.py`, `maps.py` – data adapters and weather-map rendering (same as the local app)
-- `templates/index.html` – the page (reads `data/…json`, `maps/…png`, `hist/…json` with relative paths)
-- `data/` – saved state between runs (last good JSON of every panel, maps). The workflow commits it back to the repo after each run, so the vessel list and the daily climatology are kept, and a source that fails keeps showing its previous data with an error note.
-- `.github/workflows/update.yml` – the schedule (every 15 min), manual "Run workflow", and run on every code push
-- `requirements.txt`
+A scheduled GitHub Actions job runs `build.py` about every 15 minutes. It fetches each data source once, writes static files into `site/` and publishes them to GitHub Pages. The page reloads its data every 5 minutes and shows when it was last built (Geneva time).
 
-## Limits
-- GitHub schedules are best-effort: runs often start 5–20 min late and can be skipped at busy times, so data is typically 15–30 min old on top of the Yahoo delay.
-- GitHub disables scheduled workflows after 60 days with no repository activity; the bot's data commits normally count, but if it stops, re-enable it in the Actions tab.
-- The page and the repo are **public**: anyone with the address can see them.
-- Yahoo Finance data is unofficial and delayed (~10–20 min / last settle); RSS feeds are third-party. For personal use only, not official quotes. No ICE/Euronext data, no Squawk.
-- The chart popup only works for symbols saved in the last build (all contracts shown on the page + macro + EUR/USD).
-- GDELT rate-limits shared IPs; when it refuses, the energy/war window still works on its RSS feeds.
-- Every run adds a small "data: update" commit to the repo (state persistence). This is normal.
+## What it shows
+- CBOT grains and oilseeds futures curves (corn, wheat, KC wheat, soybeans, meal, oil) with soybean crush and the SBO–palm spread
+- Energy: Brent, WTI, heating oil, RBOB, Henry Hub and TTF gas, with crack spreads
+- Macro snapshot: DXY, gold, silver, US 10Y (in points), equity indices, VIX, EUR/USD, SOFR and €STR
+- Malaysian palm oil (CME USD CPO)
+- Market and agricultural news from RSS and Google News, plus GDELT event coverage
+- Strait of Hormuz / Gulf vessel incident tracker (verified incidents, with unverified claims shown separately)
+- South America weather: Open-Meteo forecasts, anomaly maps and climatology, with a Windy live embed
+- Click any contract for a history chart popup
 
-## Changes 2026-11-05
-- Palm oil panel (`CPO=F`, CME USD Malaysian CPO) beside a narrower soybean crush chart, with SBO−palm spread.
-- Brent quote window: an expired Brent contract is hidden from the 1st of the calendar month after its expiry (expiry = known last-trade override or last business day of M−2). Brent only; other products keep the previous grace rule.
-- Windy live weather embed (4 regions × 4 layers) with the static South America maps as a collapsed fallback.
-- Hormuz verified incident list extended through early Nov 2026; IRGC mine claims shown as grey **UNVERIFIED claim** rows.
+## Repository layout
+- `build.py`: runs every job once and writes `site/` (`index.html`, `data/*.json`, `maps/*.png`, `hist/*.json`)
+- `sources.py`: data adapters (prices, macro, news, vessel incidents, weather)
+- `maps.py`: weather map rendering with cartopy
+- `templates/index.html`: the page template
+- `assets/`: logo and icons
+- `data/`: saved state between runs. The workflow commits it back after each run, so history is kept and a failing source keeps showing its last good data with an error note.
+- `.github/workflows/update.yml`: the schedule (every 15 minutes), manual runs and runs on every push
+- `requirements.txt`: Python dependencies
+
+## Run locally
+```
+pip install -r requirements.txt
+python build.py
+cd site && python -m http.server 8000   # then open http://localhost:8000
+```
+
+## Deploy your own copy
+1. Fork or copy the repository (it must be public for free Pages and Actions minutes).
+2. In **Settings → Pages**, set the source to **GitHub Actions**.
+3. In **Settings → Actions → General**, set workflow permissions to **Read and write**.
+4. Open the **Actions** tab and run **Update dashboard**. The first run takes 3–5 minutes.
+
+## Notes and limits
+- Market data comes from free public sources, may be delayed, and isn't official exchange data. News comes from third-party feeds.
+- GitHub scheduled runs are best-effort and can start late or be skipped at busy times.
+- Each run adds a small `data: update` commit; this is how state is kept between runs.
+- The history popup only covers symbols saved in the latest build.
+
+## Disclaimer
+For information only. Nothing here is investment advice or an offer to buy or sell any commodity or financial instrument.
+
+© MedCommodities
