@@ -1,8 +1,9 @@
-"""Modular data adapters. Each returns plain dicts; errors -> {'error': reason}.
-Real-time providers: set COMMODASH_PROVIDER=databento|barchart plus DATABENTO_API_KEY / BARCHART_API_KEY
-in /workspace/commodash/.env and implement the stub below (same output shape as yahoo_curve)."""
+"""Dashboard data jobs. Each returns plain dicts; errors -> {'error': reason}.
+All market prices come from the provider layer (providers/, see PROVIDERS.md): this module never imports a vendor SDK.
+Switch vendor with COMMODASH_PROVIDER=<name> (+ the vendor's API key env var) after writing its adapter."""
 import os, json, datetime as dt, math, re, hashlib, requests, feedparser
-import yfinance as yf
+from providers import get_provider, get_rates, symbols as SY
+from providers.contracts import last_business_day as _last_business_day, brent_expiry as _brent_expiry, BRENT_LAST_TRADE
 MC="FGHJKMNQUVXZ"
 UA={"User-Agent":"Mozilla/5.0 commodash"}
 
@@ -15,39 +16,26 @@ def months_ahead(n, start=None, allowed=MC, skip_current=True):
         m+=1
     return out
 
-# product: (yahoo root, suffix, allowed months, unit, n, note)
+# product: (root = canonical futures root, allowed months, unit, n contracts shown, note). Vendor codes live in providers/symbols.py
 PRODUCTS={
- "CL":("CL",".NYM",MC,"$/bbl",8,"NYMEX WTI"),
- "BZ":("BZ",".NYM",MC,"$/bbl",8,"NYMEX Brent (financial, tracks ICE Brent)"),
- "HO":("HO",".NYM",MC,"$/gal",6,"NYMEX NY Harbor ULSD (heating oil)"),
- "RB":("RB",".NYM",MC,"$/gal",6,"NYMEX RBOB gasoline"),
- "NG":("NG",".NYM",MC,"$/MMBtu",8,"NYMEX Henry Hub"),
- "TTF":("TTF",".NYM",MC,"EUR/MWh",6,"Dutch TTF (NYMEX look-alike of ICE Endex)"),
- "6E":("6E",".CME","HMUZ","USD per EUR",5,"CME Euro FX futures"),
- "ZS":("ZS",".CBT","FHKNQUX","c/bu",7,"CBOT soybeans"),
- "ZM":("ZM",".CBT","FHKNQUVZ","$/short ton",7,"CBOT soybean meal"),
- "ZL":("ZL",".CBT","FHKNQUVZ","c/lb",7,"CBOT soybean oil"),
- "ZC":("ZC",".CBT","HKNUZ","c/bu",6,"CBOT corn"),
- "ZW":("ZW",".CBT","HKNUZ","c/bu",6,"CBOT SRW wheat"),
- "KE":("KE",".CBT","HKNUZ","c/bu",6,"KC HRW wheat"),
+ "CL":("CL",MC,"$/bbl",8,"NYMEX WTI"),
+ "BZ":("BZ",MC,"$/bbl",8,"NYMEX Brent (financial, tracks ICE Brent)"),
+ "HO":("HO",MC,"$/gal",6,"NYMEX NY Harbor ULSD (heating oil)"),
+ "RB":("RB",MC,"$/gal",6,"NYMEX RBOB gasoline"),
+ "NG":("NG",MC,"$/MMBtu",8,"NYMEX Henry Hub"),
+ "TTF":("TTF",MC,"EUR/MWh",6,"Dutch TTF (NYMEX look-alike of ICE Endex)"),
+ "6E":("6E","HMUZ","USD per EUR",5,"CME Euro FX futures"),
+ "ZS":("ZS","FHKNQUX","c/bu",7,"CBOT soybeans"),
+ "ZM":("ZM","FHKNQUVZ","$/short ton",7,"CBOT soybean meal"),
+ "ZL":("ZL","FHKNQUVZ","c/lb",7,"CBOT soybean oil"),
+ "ZC":("ZC","HKNUZ","c/bu",6,"CBOT corn"),
+ "ZW":("ZW","HKNUZ","c/bu",6,"CBOT SRW wheat"),
+ "KE":("KE","HKNUZ","c/bu",6,"KC HRW wheat"),
 }
-
-def _last_business_day(y,m):
-    """Last Mon–Fri of calendar month y-m (no holiday calendar)."""
-    if m==12: d=dt.date(y+1,1,1)-dt.timedelta(days=1)
-    else: d=dt.date(y,m+1,1)-dt.timedelta(days=1)
-    while d.weekday()>=5: d-=dt.timedelta(days=1)
-    return d
-
-# Optional known ICE Brent last-trade overrides (YYYY-MM -> date). Else last BD of M-2.
-BRENT_LAST_TRADE={}
-
-def _brent_expiry(y,m):
-    """Expiry of Brent delivery month M: known last-trade if set, else last business day of M-2."""
-    key=f"{y}-{m:02d}"
-    if key in BRENT_LAST_TRADE: return BRENT_LAST_TRADE[key]
-    ey,em=(y-1,m+10) if m<=2 else (y,m-2)
-    return _last_business_day(ey,em)
+def contract_allowed(sym):
+    """True for a canonical contract id of a dashboard product in one of its listed months."""
+    p=SY.parse(sym)
+    return p["kind"]=="contract" and any(r==p["root"] and p["code"] in al for r,al,*_ in PRODUCTS.values())
 
 def _brent_still_listed(y,m,today=None):
     """Hide expired Brent from the 1st of the calendar month after its expiry.
@@ -58,16 +46,17 @@ def _brent_still_listed(y,m,today=None):
     hide_from=dt.date(exp.year+1,1,1) if exp.month==12 else dt.date(exp.year,exp.month+1,1)
     return today<hide_from
 
-def yahoo_curve(key):
-    root,suf,allowed,unit,n,note=PRODUCTS[key]
+def curve(key):
+    P=get_provider()
+    root,allowed,unit,n,note=PRODUCTS[key]
     # grains: include current month if contract not yet expired (e.g. ZSX in Oct)
     # Brent: pull extra candidates so ICE M-2 expiry filter still fills n rows
     extra=6 if key=="BZ" else 2
     cands=months_ahead(n+extra,allowed=allowed,skip_current=(root not in ("ZS","ZM","ZL","ZC","ZW","KE","6E")))
     if key=="BZ":
         cands=[(c,y,m) for c,y,m in cands if _brent_still_listed(y,m)]
-    tick={f"{root}{c}{str(y)[2:]}{suf}":(c,y,m) for c,y,m in cands}
-    df=yf.download(list(tick),period="7d",interval="1d",progress=False,auto_adjust=False,threads=True,group_by="ticker")
+    tick={SY.contract_id(root,c,y):(c,y,m) for c,y,m in cands}
+    df=P.get_history_batch(list(tick),"1d",start="7d")
     rows=[]
     for t,(c,y,m) in tick.items():
         try:
@@ -79,53 +68,43 @@ def yahoo_curve(key):
               asof=str(s.index[-1].date()),vol=float(df[t]["Volume"].dropna().iloc[-1]) if len(df[t]["Volume"].dropna()) else None))
         except Exception: pass
     rows=sorted(rows,key=lambda r:r["month"])[:n]
-    out=dict(key=key,unit=unit,source=f"Yahoo Finance ({note}), delayed ~10-20 min / last settle",rows=rows)
+    out=dict(key=key,unit=unit,source=f"{P.label} ({note}), delayed ~10-20 min / last settle",rows=rows)
     if key=="BZ":
         out["expiry_note"]="Brent: hidden from 1st of month after expiry (expiry=known last trade or last BD of M-2)"
-    if not rows: out["error"]="no contract data returned by Yahoo"
+    if not rows: out["error"]="no contract data returned by the price provider"
     return out
 
-def realtime_curve(key):  # plug-in point
-    prov=os.getenv("COMMODASH_PROVIDER","yahoo")
-    if prov=="databento" and os.getenv("DATABENTO_API_KEY"):
-        raise NotImplementedError("Databento adapter: implement with databento.Historical(key).timeseries.get_range(dataset='GLBX.MDP3', schema='ohlcv-1d'/'mbp-1', stype_in='parent', symbols=[f'{key}.FUT'])")
-    if prov=="barchart" and os.getenv("BARCHART_API_KEY"):
-        raise NotImplementedError("Barchart OnDemand adapter: getQuote.json?apikey=...&symbols=CLZ26,...")
-    return yahoo_curve(key)
+def realtime_curve(key):
+    """Futures curve for a PRODUCTS key from the configured provider (COMMODASH_PROVIDER, see providers/)."""
+    return curve(key)
 
 def gasoil():
     return dict(key="LGO",unit="$/t",rows=[],source="ICE Futures Europe Low Sulphur Gasoil",
-      error="source needed: no free, terms-compliant feed. ICE's site terms forbid robots/data extraction of its delayed prices; Yahoo has no ICE gasoil or NYMEX 7F look-alike; Barchart OnDemand has no free tier. Add a licensed key (Databento GLBX 7F, Barchart, ICE) to enable.")
+      error="source needed: no free, terms-compliant feed. ICE's site terms forbid robots/data extraction of its delayed prices; the current free feed has no ICE gasoil or NYMEX 7F look-alike; Barchart OnDemand has no free tier. Add a licensed key (Databento GLBX 7F, Barchart, ICE) to enable.")
 
-def history(tickers,period="6mo"):
-    df=yf.download(tickers,period=period,interval="1d",progress=False,auto_adjust=False,group_by="ticker")
-    return {t:df[t]["Close"] for t in tickers}
+def history(syms,period="6mo"):
+    """{canonical id: daily Close series} via the provider batch call."""
+    df=get_provider().get_history_batch(syms,"1d",start=period)
+    return {t:df[t]["Close"] for t in syms}
 
 def cracks():
-    h=history(["CL=F","BZ=F","RB=F","HO=F"])
+    h=history(["CL1!","BZ1!","RB1!","HO1!"])
     import pandas as pd
     d=pd.DataFrame(h).dropna()
-    rb,ho=d["RB=F"]*42,d["HO=F"]*42
-    wti=(2*rb+ho-3*d["CL=F"])/3; brent=(2*rb+ho-3*d["BZ=F"])/3; hob=ho-d["BZ=F"]
+    rb,ho=d["RB1!"]*42,d["HO1!"]*42
+    wti=(2*rb+ho-3*d["CL1!"])/3; brent=(2*rb+ho-3*d["BZ1!"])/3; hob=ho-d["BZ1!"]
     f=lambda s:[round(float(x),2) for x in s]
     return dict(dates=[str(x.date()) for x in d.index],wti321=f(wti),brent321=f(brent),ho_brent=f(hob),
-      source="Yahoo front-month continuous CL=F, BZ=F, RB=F, HO=F (daily settles/last, delayed)",
+      source=f"{get_provider().label} front-month continuous CL, BZ, RB, HO (daily settles/last, delayed)",
       formula="3-2-1 = (2*RB*42 + 1*HO*42 - 3*Crude)/3 in $/bbl (RB, HO quoted $/gal, 42 gal/bbl). HO-Brent = HO*42 - BZ. Gasoil-Brent crack pending ICE gasoil source.")
 
 def rates():
-    out={}
-    try:
-        t=requests.get("https://data-api.ecb.europa.eu/service/data/EST/B.EU000A2X2A25.WT?lastNObservations=1&format=csvdata",timeout=20).text.strip().splitlines()
-        hdr=t[0].split(","); v=t[-1].split(","); out["estr"]=float(v[hdr.index("OBS_VALUE")]); out["estr_date"]=v[hdr.index("TIME_PERIOD")]
-    except Exception as e: out["estr_err"]=str(e)
-    try:
-        j=requests.get("https://markets.newyorkfed.org/api/rates/secured/sofr/last/1.json",timeout=20).json()["refRates"][0]
-        out["sofr"]=j["percentRate"]; out["sofr_date"]=j["effectiveDate"]
-    except Exception as e: out["sofr_err"]=str(e)
-    return out
+    """SOFR / €STR from the provider layer (official public sources)."""
+    return get_rates()
 
 def fx():
-    s=yf.Ticker("EURUSD=X").history(period="5d")["Close"].dropna()
+    P=get_provider()
+    s=P.get_history("EURUSD","1d",start="5d")["Close"].dropna()
     spot=float(s.iloc[-1]); prev=float(s.iloc[-2])
     r=rates(); fwd=[]
     if "estr" in r and "sofr" in r:
@@ -133,7 +112,7 @@ def fx():
             f=spot*(1+r["sofr"]/100*days/360)/(1+r["estr"]/100*days/360)
             fwd.append(dict(tenor=lbl,days=days,eurusd=f,usdeur=1/f,points=(f-spot)*1e4))
     return dict(spot=spot,usdeur=1/spot,chg=spot-prev,pct=(spot/prev-1)*100,asof=str(s.index[-1]),rates=r,forwards=fwd,
-      source="Spot: Yahoo EURUSD=X (delayed). Forwards COMPUTED by covered interest parity from SOFR (NY Fed) and €STR (ECB), ACT/360, simple interest - indicative, not dealer quotes. EUR is deliverable, so no true NDF exists; CME 6E futures shown as traded outright forwards.",
+      source=f"Spot: {P.label} EUR/USD (delayed). Forwards COMPUTED by covered interest parity from SOFR (NY Fed) and €STR (ECB), ACT/360, simple interest - indicative, not dealer quotes. EUR is deliverable, so no true NDF exists; CME 6E futures shown as traded outright forwards.",
       futures=realtime_curve("6E"))
 
 NEWSQ={"energy":"crude oil OR Brent OR WTI OR OPEC OR natural gas OR LNG OR diesel OR gasoline OR refinery","war":"Hormuz OR Iran OR \"Middle East\" OR Israel OR Russia Ukraine OR \"Black Sea\" OR \"Red Sea\" OR Houthi",
@@ -379,25 +358,26 @@ def vessels():
       checked=dt.datetime.now(dt.timezone.utc).isoformat(),articles_scanned=len(rep),errors=errs,
       source="Verified table (manual, never auto-modified): UKMTO 160/164-195, IMO confirmed-incidents board, NAVAREA IX, CENTCOM, India MEA, Seatrade/TradeWinds/MarEx. Auto rows: extracted every 15 min from Google News RSS + gCaptain, Splash247, Maritime Executive, Seatrade, Hellenic Shipping News RSS; pending until >=2 distinct reputable outlets name the same vessel/IMO/UKMTO no. Auto positions = location keyword, approximate. UKMTO site blocks automated access.")
 
-MACRO=[("DX-Y.NYB","DXY (ICE)",3),("GC=F","Gold $/oz",1),("^TNX","US 10Y yield %",3),("^GSPC","S&P 500",1),("^NDX","Nasdaq 100",1),("^VIX","VIX",2),("BTC-USD","Bitcoin $",0)]
+# canonical ids (providers/symbols.py)
+MACRO=[("DXY","DXY (ICE)",3),("GC1!","Gold $/oz",1),("US10Y","US 10Y yield %",3),("SPX","S&P 500",1),("NDX","Nasdaq 100",1),("VIX","VIX",2),("BTCUSD","Bitcoin $",0)]
 def macro():
-    rows=[];errs=[]
+    P=get_provider(); rows=[];errs=[]
     for t,n,d in MACRO:
         try:
-            h=yf.Ticker(t).history(period="1mo")["Close"].dropna()
+            h=P.get_history(t,"1d",start="1mo")["Close"].dropna()
             last,prev=float(h.iloc[-1]),float(h.iloc[-2])
             rows.append(dict(ticker=t,name=n,dec=d,last=last,chg=last-prev,pct=(last/prev-1)*100,asof=str(h.index[-1])[:16],spark=[round(float(x),4) for x in h.values],dates=[str(x)[:10] for x in h.index]))
         except Exception as e: errs.append(f"{t}: {type(e).__name__}")
-        if t=="GC=F":  # spot silver right below gold
+        if t=="GC1!":  # spot silver right below gold
             try:
-                h=yf.Ticker("SI=F").history(period="1mo")["Close"].dropna(); sp=[round(float(x),4) for x in h.values]
+                h=P.get_history("SI1!","1d",start="1mo")["Close"].dropna(); sp=[round(float(x),4) for x in h.values]
                 ref=float(h.iloc[-2]); asof=str(h.index[-1])[:16]
                 try:
-                    j=requests.get("https://api.gold-api.com/price/XAG",headers=UA,timeout=15).json(); last=float(j["price"]); asof=j.get("updatedAt",asof); sp[-1]=round(last,4); nm="Silver spot $/oz"
+                    j=P.get_quote("XAGUSD"); last=float(j["last"]); asof=j.get("time") or asof; sp[-1]=round(last,4); nm="Silver spot $/oz"
                 except Exception as e: last=float(h.iloc[-1]); nm="Silver $/oz (COMEX)"; errs.append(f"XAG spot: {type(e).__name__}")
-                rows.append(dict(ticker="SI=F",name=nm,dec=2,last=last,chg=last-ref,pct=(last/ref-1)*100,asof=asof,spark=sp,dates=[str(x)[:10] for x in h.index]))
+                rows.append(dict(ticker="SI1!",name=nm,dec=2,last=last,chg=last-ref,pct=(last/ref-1)*100,asof=asof,spark=sp,dates=[str(x)[:10] for x in h.index]))
             except Exception as e: errs.append(f"XAG: {type(e).__name__}")
-    return dict(rows=rows,errors=errs,source="Yahoo Finance (delayed); silver spot gold-api.com, chg vs prior COMEX close; spark = 1-month daily closes; ^TNX quoted in % (chg in bp)")
+    return dict(rows=rows,errors=errs,source=f"{P.label} (delayed); silver spot gold-api.com, chg vs prior COMEX close; spark = 1-month daily closes; ^TNX quoted in % (chg in bp)")
 
 REGIONS=dict(lat=(-38,-8),lon=(-66,-44))
 def _grid(step=2.0):
@@ -446,10 +426,10 @@ def crush():
         for b,m in CRUSH_PAIRS:
             bm=MC.index(b)+1;
             if dt.date(y,bm,15)<today: continue
-            yy=str(y)[2:]; sets.append((dt.date(y,bm,1),f"ZS{b}{yy}.CBT",f"ZM{m}{yy}.CBT",f"ZL{m}{yy}.CBT"))
+            sets.append((dt.date(y,bm,1),SY.contract_id("ZS",b,y),SY.contract_id("ZM",m,y),SY.contract_id("ZL",m,y)))
     sets=sorted(sets)[:8]
     tk=sorted({t for s in sets for t in s[1:]})
-    df=yf.download(tk,period="6mo",interval="1d",progress=False,auto_adjust=False,group_by="ticker")
+    P=get_provider(); df=P.get_history_batch(tk,"1d",start="6mo")
     import pandas as pd
     rows=[];hist=None
     for d,s,m,o in sets:
@@ -464,19 +444,19 @@ def crush():
             if hist is None: hist=dict(set=r["set"],dates=[str(i.date()) for i in c.index],crush=[round(float(v),4) for v in c],oil_share=[round(float(v),2) for v in oil/(oil+meal)*100])
         except Exception: pass
     out=dict(rows=rows,hist=hist,formula="Board crush ($/bu) = meal $/short ton × 0.022 (44 lb meal/bu ÷ 2000) + oil ¢/lb × 0.11 (11 lb oil/bu ÷ 100) − beans ¢/bu ÷ 100. Oil share = oil value ÷ (oil + meal value). Pairs: Nov beans vs Dec meal/oil, other months same-month.",
-             source="Yahoo Finance CBOT ZS/ZM/ZL daily (delayed)")
+             source=f"{P.label} CBOT ZS/ZM/ZL daily (delayed)")
     if not rows: out["error"]="no matched contract sets returned"
     return out
 
 def palm():
     """CME USD Malaysian Crude Palm Oil continuous (CPO=F), USD/t.
-    Bursa FCPO (MYR/t) has no free Yahoo/terms-compliant feed; CPO is the USD CME look-alike.
+    Bursa FCPO (MYR/t) has no free terms-compliant feed; CPO is the USD CME look-alike.
     Also soy oil (ZL=F) in USD/t (¢/lb × 22.0462) and SBO−palm spread."""
     import pandas as pd
     try:
-        df=yf.download(["CPO=F","ZL=F"],period="1y",interval="1d",progress=False,auto_adjust=False,group_by="ticker")
-        palm=df["CPO=F"]["Close"].dropna(); zl=df["ZL=F"]["Close"].dropna()
-        if palm.empty: return dict(error="no CPO=F history from Yahoo",source="Yahoo Finance CPO=F")
+        P=get_provider(); df=P.get_history_batch(["CPO1!","ZL1!"],"1d",start="1y")
+        palm=df["CPO1!"]["Close"].dropna(); zl=df["ZL1!"]["Close"].dropna()
+        if palm.empty: return dict(error="no CPO history from the price provider",source=f"{P.label} CME CPO")
         last=float(palm.iloc[-1]); prev=float(palm.iloc[-2]) if len(palm)>1 else None
         aligned=pd.DataFrame({"palm":palm,"zl":zl}).dropna()
         sbo=aligned["zl"]*22.0462; spread=sbo-aligned["palm"]
@@ -486,7 +466,7 @@ def palm():
             pct=None if not prev else (last/prev-1)*100,
             asof=str(palm.index[-1].date()),
             unit="USD/t",
-            ticker="CPO=F",
+            ticker="CPO1!",
             name="CME USD Malaysian Crude Palm Oil",
             hist=dict(dates=[str(i.date()) for i in palm.index],palm=[round(float(v),2) for v in palm]),
             sbo_usd=float(sbo.iloc[-1]) if len(sbo) else None,
@@ -495,12 +475,12 @@ def palm():
             spread_chg=float(spread.iloc[-1]-spread.iloc[-2]) if len(spread)>1 else None,
             spread_hist=dict(dates=[str(i.date()) for i in spread.index],spread=[round(float(v),2) for v in spread]) if len(spread) else None,
             formula="SBO USD/t = ZL ¢/lb × 22.0462 (2204.62 lb/t ÷ 100). Spread = SBO − palm (USD/t).",
-            source="Yahoo Finance CME CPO=F continuous (USD Malaysian CPO calendar, delayed). Not Bursa FCPO (MYR) — no free compliant feed. ZL=F for soy oil.",
-            note="Bursa FCPO (MYR/t) unavailable on free Yahoo; showing CME USD CPO look-alike.",
+            source=f"{P.label} CME CPO continuous (USD Malaysian CPO calendar, delayed). Not Bursa FCPO (MYR) — no free compliant feed. ZL continuous for soy oil.",
+            note="Bursa FCPO (MYR/t) unavailable on the current feed; showing CME USD CPO look-alike.",
         )
         return out
     except Exception as e:
-        return dict(error=f"{type(e).__name__}: {e}",source="Yahoo Finance CPO=F")
+        return dict(error=f"{type(e).__name__}: {e}",source="CME CPO")
 
 
 

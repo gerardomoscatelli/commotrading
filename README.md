@@ -17,14 +17,29 @@ A scheduled GitHub Actions job runs `build.py` about every 15 minutes. It fetche
 - Click any contract for a history chart popup
 
 ## Repository layout
-- `build.py`: runs every job once and writes `site/` (`index.html`, `data/*.json`, `maps/*.png`, `hist/*.json`)
-- `sources.py`: data adapters (prices, macro, news, vessel incidents, weather)
+- `build.py`: runs every job once and writes `site/` (`index.html`, `data/*.json`, `maps/*.png`, `hist/chart/*.json`)
+- `sources.py`: dashboard data jobs (curves, crush, cracks, macro, news, vessel incidents, weather)
+- `providers/`: the market-data layer. All prices come through one interface, so the data vendor can be swapped by writing a single adapter and setting `COMMODASH_PROVIDER` (see [PROVIDERS.md](PROVIDERS.md))
+- `chartdata.py`: chart window data (candles, intraday, contract details)
 - `maps.py`: weather map rendering with cartopy
 - `templates/index.html`: the page template
 - `assets/`: logo and icons
 - `data/`: saved state between runs. The workflow commits it back after each run, so history is kept and a failing source keeps showing its last good data with an error note.
 - `.github/workflows/update.yml`: the schedule (every 15 minutes), manual runs and runs on every push
 - `requirements.txt`: Python dependencies
+
+## Run locally
+```
+pip install -r requirements.txt
+python build.py
+cd site && python -m http.server 8000   # then open http://localhost:8000
+```
+
+## Deploy your own copy
+1. Fork or copy the repository (it must be public for free Pages and Actions minutes).
+2. In **Settings → Pages**, set the source to **GitHub Actions**.
+3. In **Settings → Actions → General**, set workflow permissions to **Read and write**.
+4. Open the **Actions** tab and run **Update dashboard**. The first run takes 3–5 minutes.
 
 ## Notes and limits
 - Market data comes from free public sources, may be delayed, and isn't official exchange data. News comes from third-party feeds.

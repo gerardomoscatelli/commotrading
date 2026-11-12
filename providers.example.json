@@ -1,0 +1,1 @@
+{"provider": "yahoo", "fallback": [], "spot": "goldapi", "ttl": {"quote": 60, "info": 120, "intraday": 60, "daily": 180, "batch": 60}}

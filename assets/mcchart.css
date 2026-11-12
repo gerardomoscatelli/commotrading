@@ -1,0 +1,88 @@
+/* MedCommodities chart window — TradingView-style (12 Nov 2026) */
+#mcw{position:fixed;inset:0;z-index:1000;display:none;background:rgba(4,8,14,.62);backdrop-filter:blur(2px)}
+#mcw.on{display:block}
+.mcwin{--bg:#0f141b;--bg2:#141b24;--bg3:#1a2330;--ln:#243142;--ln2:#2f3f54;--tx:#e8eef5;--tx2:#9fb0c3;--tx3:#6b7d92;--acc:#29ABFF;--acc2:#0A6CFF;--up:#26c281;--dn:#f0505f;
+ position:fixed;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--ln2);border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.65),0 0 0 1px rgba(41,171,255,.06);
+ color:var(--tx);font:12.5px/1.35 Inter,"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden;min-width:420px;min-height:300px;font-variant-numeric:tabular-nums}
+.mcwin.max{left:6px!important;top:6px!important;width:calc(100vw - 12px)!important;height:calc(100vh - 12px)!important;border-radius:8px}
+.mcwin:fullscreen{border-radius:0;border:0}
+.mcwin button{font:inherit;color:var(--tx2);background:transparent;border:1px solid transparent;border-radius:6px;padding:4px 8px;cursor:pointer;line-height:16px;white-space:nowrap}
+.mcwin button:hover{background:var(--bg3);color:var(--tx)}
+.mcwin button.on{color:#fff;background:linear-gradient(180deg,rgba(41,171,255,.28),rgba(10,108,255,.22));border-color:rgba(41,171,255,.55)}
+.mcwin button:disabled{opacity:.35;cursor:default}
+.mc-hd{display:flex;align-items:center;gap:10px;padding:7px 10px 7px 12px;background:linear-gradient(180deg,#151d28,#111821);border-bottom:1px solid var(--ln);cursor:move;user-select:none;min-height:44px}
+.mc-hd img{height:22px;width:auto;opacity:.95;flex:0 0 auto}
+.mc-title{display:flex;flex-direction:column;min-width:0;flex:0 1 auto}
+.mc-title b{font-size:14.5px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-title span{font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-hq{display:flex;align-items:baseline;gap:8px;margin-left:6px;white-space:nowrap}
+.mc-hq .px{font-size:17px;font-weight:600}
+.mc-sp{flex:1}
+.mc-wb{display:flex;gap:2px}.mc-wb button{padding:4px 7px;font-size:14px}
+.mc-wb .x:hover{background:#3a1820;color:#ff7b88}
+.mc-tb{display:flex;align-items:center;gap:2px;padding:4px 8px;border-bottom:1px solid var(--ln);background:var(--bg2);flex-wrap:wrap;user-select:none}
+.mc-sep{width:1px;height:20px;background:var(--ln2);margin:0 6px}
+.mc-grp{display:flex;gap:1px;align-items:center}
+.mcwin svg{width:16px;height:16px;display:inline-block;vertical-align:-3.5px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.mc-tb button.ic{padding:4px 6px}
+.mc-dd{position:relative}
+.mc-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:30;background:#121a24;border:1px solid var(--ln2);border-radius:8px;box-shadow:0 14px 40px rgba(0,0,0,.6);padding:8px;min-width:340px;display:none;cursor:default}
+.mc-menu.on{display:block}
+.mc-menu h4{margin:6px 4px 4px;font-size:10.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--tx3)}
+.mc-mi{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px}
+.mc-mi:hover{background:var(--bg3)}
+.mc-mi label{display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;color:var(--tx)}
+.mc-mi input[type=checkbox]{accent-color:var(--acc);width:14px;height:14px;margin:0}
+.mc-mi input[type=number]{width:52px;background:#0b1017;border:1px solid var(--ln2);border-radius:5px;color:var(--tx);padding:2px 5px;font:inherit}
+.mc-mi .sw{width:12px;height:3px;border-radius:2px;flex:0 0 auto}
+.mc-body{flex:1;display:flex;min-height:0;position:relative}
+.mc-cw{flex:1;position:relative;min-width:0}
+.mc-chart{position:absolute;inset:0}
+.mc-ov{position:absolute;left:0;top:0;pointer-events:none;z-index:3}
+.mc-lg{position:absolute;left:10px;top:8px;z-index:4;pointer-events:none;font-size:12px;text-shadow:0 1px 2px rgba(0,0,0,.8);max-width:calc(100% - 90px)}
+.mc-lg .r1{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.mc-lg .sym{font-weight:600;color:var(--tx);font-size:13px}
+.mc-lg .k{color:var(--tx3);margin-right:2px}
+.mc-lg .ind{display:flex;gap:10px;flex-wrap:wrap;margin-top:3px;font-size:11.5px}
+.mc-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:6;color:var(--tx2);font-size:13px;pointer-events:none}
+.mc-msg.err{color:#ffb000}
+.mc-spin{width:26px;height:26px;border-radius:50%;border:2px solid var(--ln2);border-top-color:var(--acc);animation:mcspin .8s linear infinite;margin-right:10px}
+@keyframes mcspin{to{transform:rotate(360deg)}}
+.mc-hint{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:5;background:rgba(10,108,255,.9);color:#fff;font-size:11.5px;padding:4px 10px;border-radius:12px;pointer-events:none;display:none}
+.mc-hint.on{display:block}
+.mc-side{width:268px;flex:0 0 268px;border-left:1px solid var(--ln);background:var(--bg2);overflow:auto;padding:10px}
+.mcwin.noside .mc-side{display:none}
+.mcwin.narrow:not(.sideopen) .mc-side{display:none}
+.mcwin.narrow .mc-side{position:absolute;right:8px;top:8px;bottom:auto;max-height:calc(100% - 16px);z-index:8;border:1px solid var(--ln2);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.6)}
+.mc-card{background:linear-gradient(180deg,#18212d,#131a23);border:1px solid var(--ln);border-radius:9px;padding:12px}
+.mc-card .c1{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.mc-card .code{font-size:16px;font-weight:700;letter-spacing:.3px}
+.mc-card .nm{color:var(--tx2);font-size:11.5px;margin-top:1px}
+.mc-badge{font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(41,171,255,.14);color:var(--acc);border:1px solid rgba(41,171,255,.35);white-space:nowrap}
+.mc-card .last{font-size:26px;font-weight:650;margin-top:10px;letter-spacing:-.3px}
+.mc-card .unit{font-size:12px;color:var(--tx3);font-weight:400;margin-left:4px}
+.mc-card .chg{font-size:13px;font-weight:600;margin-top:1px}
+.mc-card .asof{font-size:10.5px;color:var(--tx3);margin-top:3px}
+.mc-kv{display:grid;grid-template-columns:1fr auto;gap:5px 10px;margin-top:12px;font-size:12px}
+.mc-kv .k{color:var(--tx3)}.mc-kv .v{text-align:right;color:var(--tx)}
+.mc-kv .hr{grid-column:1/3;height:1px;background:var(--ln);margin:3px 0}
+.mc-rng{margin-top:12px}
+.mc-rng .t{display:flex;justify-content:space-between;font-size:10.5px;color:var(--tx3);margin-bottom:4px}
+.mc-rng .bar{position:relative;height:5px;border-radius:3px;background:linear-gradient(90deg,var(--dn),#5b6472 50%,var(--up))}
+.mc-rng .dot{position:absolute;top:-4px;width:3px;height:13px;margin-left:-1.5px;border-radius:2px;background:#fff;box-shadow:0 0 0 2px rgba(41,171,255,.6)}
+.mc-rng .v{display:flex;justify-content:space-between;font-size:11.5px;margin-top:4px}
+.mc-src{font-size:10.5px;color:var(--tx3);margin-top:10px;line-height:1.45}
+.up2{color:var(--up)}.dn2{color:var(--dn)}
+.mc-ft{display:flex;align-items:center;gap:2px;padding:3px 8px;border-top:1px solid var(--ln);background:var(--bg2);user-select:none;flex-wrap:wrap}
+.mc-ft button{padding:2px 8px;font-size:11.5px}
+.mc-ft .st{margin-left:auto;color:var(--tx3);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-rs{position:absolute;z-index:20}
+.mc-rs.n,.mc-rs.s{left:10px;right:10px;height:7px;cursor:ns-resize}.mc-rs.n{top:-3px}.mc-rs.s{bottom:-3px}
+.mc-rs.e,.mc-rs.w{top:10px;bottom:10px;width:7px;cursor:ew-resize}.mc-rs.e{right:-3px}.mc-rs.w{left:-3px}
+.mc-rs.ne,.mc-rs.nw,.mc-rs.se,.mc-rs.sw{width:14px;height:14px}
+.mc-rs.ne{top:-3px;right:-3px;cursor:nesw-resize}.mc-rs.sw{bottom:-3px;left:-3px;cursor:nesw-resize}
+.mc-rs.nw{top:-3px;left:-3px;cursor:nwse-resize}.mc-rs.se{bottom:-3px;right:-3px;cursor:nwse-resize}
+.mc-grip{position:absolute;right:3px;bottom:3px;width:10px;height:10px;z-index:19;pointer-events:none;background:linear-gradient(135deg,transparent 50%,var(--ln2) 50%,var(--ln2) 60%,transparent 60%,transparent 70%,var(--ln2) 70%,var(--ln2) 80%,transparent 80%)}
+.mcwin.max .mc-rs,.mcwin.max .mc-grip{display:none}
+.mcwin.drawing .mc-cw{cursor:crosshair}
+@media (max-width:700px){.mcwin{min-width:0}.mc-hq{display:none}}

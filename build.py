@@ -36,64 +36,46 @@ def wx():
     return w
 JOBS=[("prices",prices),("cracks",S.cracks),("crush",S.crush),("palm",S.palm),("fx",S.fx),("macro",S.macro),("news",S.news),
       ("gnews",S.general_news),("agnews",S.ags_news),("vessels",S.vessels),("clim",clim),("weather",wx)]
-# ---- popup history ----
-MAC={t for t,_,_ in S.MACRO}|{"EURUSD=X","CPO=F"}
-def okcontract(sym):
-    m=re.fullmatch(r"([A-Z0-9]+?)([FGHJKMNQUVXZ])(\d{2})(\.[A-Z]{3})",sym)
-    if not m: return None
-    for root,suf,allowed,*_ in S.PRODUCTS.values():
-        if m.group(1)==root and m.group(4)==suf and m.group(2) in allowed: return root
-    return None
+# ---- chart history (all prices via the provider layer, providers/; symbols are canonical ids) ----
+from providers import symbols as SY
+MAC={t for t,_,_ in S.MACRO}|{"EURUSD","CPO1!","SI1!"}  # SI1!: silver row in the macro snapshot
 def fname(sym): return re.sub(r"[^A-Za-z0-9.\-]","_",sym)+".json"
-def ohlcv(sym):
-    import yfinance as yf
-    df=yf.Ticker(sym).history(period="2y",interval="1d",auto_adjust=False); return df.dropna(subset=["Close"])
-def pack(df):
-    c=df["Close"]; out=dict(dates=[str(d.date()) for d in df.index],open=df["Open"].round(6).tolist(),high=df["High"].round(6).tolist(),low=df["Low"].round(6).tolist(),close=c.round(6).tolist())
-    for n in (20,50,100,200): out[f"sma{n}"]=[None if x!=x else round(float(x),6) for x in c.rolling(n).mean()]
-    v=df["Volume"].fillna(0); out["volume"]=v.tolist() if float(v.sum())>0 else None
-    return out
-def hist(sym):
-    root=okcontract(sym); cont=sym.endswith("=F")
-    res=dict(requested=sym,symbol=sym,continuous=cont,fallback=False)
-    try:
-        df=ohlcv(sym)
-        if root and len(df)<220:
-            res["note"]=f"{sym}: only {len(df)} daily bars on Yahoo, not enough for a 200d SMA; showing continuous front month {root}=F"
-            df=ohlcv(root+"=F"); res.update(symbol=root+"=F",continuous=True,fallback=True)
-        if len(df)==0: res["error"]="no history returned by Yahoo"
-        else:
-            if len(df)<200: res["warn"]=f"not enough history for 200d SMA ({len(df)} bars)"
-            res.update(pack(df))
-        res["fetched"]=now()
-    except Exception as e: res["error"]=f"{type(e).__name__}: {e}"
-    return sym,res
 def hist_symbols():
-    syms=set(MAC)|{r+"=F" for r,*_ in S.PRODUCTS.values()}
-    sufs={suf for _,suf,*_ in S.PRODUCTS.values()}
+    syms=set(MAC)|{SY.cont_id(r) for r,*_ in S.PRODUCTS.values()}
     def walk(o):
         if isinstance(o,dict):
             c=o.get("contract")
-            if isinstance(c,str):
-                for s in sufs:
-                    if okcontract(c+s): syms.add(c+s)
+            if isinstance(c,str) and S.contract_allowed(c): syms.add(c)
             for v in o.values(): walk(v)
         elif isinstance(o,list):
             for v in o: walk(v)
     for n in ("prices","fx","crush","cracks"): walk(load(n))
     return sorted(syms)
+# Chart window (12 Nov 2026): per symbol, write hist/chart/<sym>__<tf>.json for 15m, 60m and 1d.
+# Weekly and monthly are resampled from the daily file in the browser. Failed fetches reuse the last good daily file from .cache/chart when present.
+import chartdata as CD
+CHART_TFS=("15m","60m","1d")
+def _chart_one(arg):
+    sym,tf=arg
+    try: return sym,tf,CD.chart(sym,tf,"auto")
+    except Exception as e: return sym,tf,{"error":f"{type(e).__name__}: {e}"}
+def _compact(o): return json.dumps(o,separators=(",",":"),default=str)
 def build_hist(hd):
-    os.makedirs(hd,exist_ok=True); ok=bad=0; idx={}
+    cd=os.path.join(hd,"chart"); keep=os.path.join(ROOT,".cache","chart"); os.makedirs(cd,exist_ok=True); os.makedirs(keep,exist_ok=True)  # last-good daily files: local cache, NOT in data/ (the workflow commits data/ every run)
+    ok=bad=0; idx={}; syms=hist_symbols()
     with ThreadPoolExecutor(6) as ex:
-        for sym,res in ex.map(hist,hist_symbols()):
-            f=os.path.join(hd,fname(sym))
-            if "error" in res and os.path.exists(os.path.join(D,"hist",fname(sym))):
-                shutil.copy(os.path.join(D,"hist",fname(sym)),f); bad+=1
+        for sym,tf,res in ex.map(_chart_one,[(s,t) for s in syms for t in CHART_TFS]):
+            fn=fname(sym)[:-5]+"__"+tf+".json"; f=os.path.join(cd,fn); k=os.path.join(keep,fn)
+            if "error" in res:
+                bad+=1
+                if os.path.exists(k): shutil.copy(k,f)
+                else: continue
             else:
-                json.dump(res,open(f,"w")); ok+=("error" not in res); bad+=("error" in res)
-            idx[sym]=fname(sym)
-    json.dump(idx,open(os.path.join(hd,"index.json"),"w"))
-    RESULTS["hist"]=f"{ok} ok, {bad} failed/kept of {len(idx)}"
+                txt=_compact(res); open(f,"w").write(txt); ok+=1
+                if tf=="1d": open(k,"w").write(txt)   # keep only daily as last-good state (intraday goes stale anyway)
+            idx.setdefault(sym,[]).append(tf)
+    json.dump(idx,open(os.path.join(cd,"index.json"),"w"))
+    RESULTS["hist"]=f"{ok} ok, {bad} failed of {len(syms)*len(CHART_TFS)} chart files"
 def main():
     skip=set(os.getenv("SKIP_JOBS","").split(","))
     for n,fn in JOBS:
